@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -15,6 +16,7 @@ import com.example.parktrack.ui.auth.RegisterScreen
 import com.example.parktrack.ui.driver.DriverDashboard
 import com.example.parktrack.viewmodel.AuthState
 import com.example.parktrack.viewmodel.AuthViewModel
+import kotlinx.coroutines.launch
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
@@ -28,38 +30,50 @@ fun ParkTrackNavHost(
     navController: NavHostController = rememberNavController(),
     startDestination: String = Screen.Login.route
 ) {
-    // Create the AuthViewModel using hiltViewModel()
     val authViewModel: AuthViewModel = hiltViewModel()
-
-    // Collect the authState as State
     val authState by authViewModel.authState.collectAsState()
+    val isCheckingAuth by authViewModel.isCheckingAuth.collectAsState()
+    val scope = rememberCoroutineScope()
 
+    // Handle navigation based on auth state changes
     LaunchedEffect(authState) {
         when (authState) {
             is AuthState.Authenticated -> {
                 val state = authState as AuthState.Authenticated
+                val currentRoute = navController.currentDestination?.route
+
+                // Navigate to appropriate dashboard if not already there
                 when (state.user.role) {
                     com.example.parktrack.data.model.UserRole.DRIVER -> {
-                        navController.navigate(Screen.DriverDashboard.route) {
-                            popUpTo(Screen.Login.route) { inclusive = true }
+                        if (currentRoute != Screen.DriverDashboard.route) {
+                            navController.navigate(Screen.DriverDashboard.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
                         }
                     }
                     com.example.parktrack.data.model.UserRole.ADMIN -> {
-                        navController.navigate(Screen.AdminDashboard.route) {
-                            popUpTo(Screen.Login.route) { inclusive = true }
+                        if (currentRoute != Screen.AdminDashboard.route) {
+                            navController.navigate(Screen.AdminDashboard.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
                         }
                     }
                 }
             }
             is AuthState.Unauthenticated -> {
-                // If we're already at login, don't navigate
-                if (navController.currentDestination?.route != Screen.Login.route) {
+                val currentRoute = navController.currentDestination?.route
+                // Only navigate to login if not already on an auth screen
+                if (currentRoute != Screen.Login.route &&
+                    currentRoute != Screen.Register.route &&
+                    !isCheckingAuth) {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
                     }
                 }
             }
-            else -> {}
+            else -> {
+                // Other states (Loading, Error, Idle) don't trigger navigation
+            }
         }
     }
 
@@ -68,19 +82,41 @@ fun ParkTrackNavHost(
         startDestination = startDestination
     ) {
         composable(Screen.Login.route) {
-            LoginScreen(navController = navController)
+            LoginScreen(
+                navController = navController,
+                onNavigateToRegister = {
+                    navController.navigate(Screen.Register.route)
+                }
+            )
         }
 
         composable(Screen.Register.route) {
-            RegisterScreen(navController = navController)
+            RegisterScreen(
+                navController = navController,
+                onNavigateToLogin = {
+                    navController.navigate(Screen.Login.route)
+                }
+            )
         }
 
         composable(Screen.DriverDashboard.route) {
-            DriverDashboard()
+            DriverDashboard(
+                onLogout = {
+                    scope.launch {
+                        authViewModel.logout()
+                    }
+                }
+            )
         }
 
         composable(Screen.AdminDashboard.route) {
-            AdminDashboard()
+            AdminDashboard(
+                onLogout = {
+                    scope.launch {
+                        authViewModel.logout()
+                    }
+                }
+            )
         }
     }
 }

@@ -23,26 +23,36 @@ class AuthViewModel @Inject constructor(
     private val _currentUser = MutableStateFlow<User?>(null)
     val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
 
+    private val _isCheckingAuth = MutableStateFlow(true)
+    val isCheckingAuth: StateFlow<Boolean> = _isCheckingAuth.asStateFlow()
+
     init {
         checkCurrentUser()
     }
 
     private fun checkCurrentUser() {
         viewModelScope.launch {
-            if (authRepository.isLoggedIn()) {
-                authRepository.currentUser?.uid?.let { userId ->
-                    val userData = authRepository.getUserData(userId)
-                    if (userData.isSuccess) {
-                        _currentUser.value = userData.getOrNull()
-                        _authState.value = AuthState.Authenticated(userData.getOrNull()!!)
-                    } else {
+            _isCheckingAuth.value = true
+            try {
+                if (authRepository.isLoggedIn()) {
+                    authRepository.currentUser?.uid?.let { userId ->
+                        val userData = authRepository.getUserData(userId)
+                        if (userData.isSuccess) {
+                            _currentUser.value = userData.getOrNull()
+                            _authState.value = AuthState.Authenticated(userData.getOrNull()!!)
+                        } else {
+                            _authState.value = AuthState.Unauthenticated
+                        }
+                    } ?: run {
                         _authState.value = AuthState.Unauthenticated
                     }
-                } ?: run {
+                } else {
                     _authState.value = AuthState.Unauthenticated
                 }
-            } else {
-                _authState.value = AuthState.Unauthenticated
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error(e.message ?: "Failed to check authentication")
+            } finally {
+                _isCheckingAuth.value = false
             }
         }
     }
@@ -50,12 +60,25 @@ class AuthViewModel @Inject constructor(
     fun login(email: String, password: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-            val result = authRepository.login(email, password)
-            if (result.isSuccess) {
-                _currentUser.value = result.getOrNull()
-                _authState.value = AuthState.Authenticated(result.getOrNull()!!)
-            } else {
-                _authState.value = AuthState.Error(result.exceptionOrNull()?.message ?: "Login failed")
+            try {
+                val result = authRepository.login(email, password)
+                if (result.isSuccess) {
+                    _currentUser.value = result.getOrNull()
+                    _authState.value = AuthState.Authenticated(result.getOrNull()!!)
+                } else {
+                    val errorMsg = result.exceptionOrNull()?.message ?: "Login failed"
+                    // Provide more user-friendly error messages
+                    val userFriendlyError = when {
+                        errorMsg.contains("invalid-email", ignoreCase = true) -> "Invalid email format"
+                        errorMsg.contains("user-not-found", ignoreCase = true) -> "User not found"
+                        errorMsg.contains("wrong-password", ignoreCase = true) -> "Incorrect password"
+                        errorMsg.contains("network", ignoreCase = true) -> "Network error. Please check your connection"
+                        else -> "Login failed: $errorMsg"
+                    }
+                    _authState.value = AuthState.Error(userFriendlyError)
+                }
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error(e.message ?: "Login failed")
             }
         }
     }
@@ -69,21 +92,39 @@ class AuthViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-            val result = authRepository.register(email, password, fullName, phoneNumber, role)
-            if (result.isSuccess) {
-                _currentUser.value = result.getOrNull()
-                _authState.value = AuthState.Authenticated(result.getOrNull()!!)
-            } else {
-                _authState.value = AuthState.Error(result.exceptionOrNull()?.message ?: "Registration failed")
+            try {
+                val result = authRepository.register(email, password, fullName, phoneNumber, role)
+                if (result.isSuccess) {
+                    _currentUser.value = result.getOrNull()
+                    _authState.value = AuthState.Authenticated(result.getOrNull()!!)
+                } else {
+                    val errorMsg = result.exceptionOrNull()?.message ?: "Registration failed"
+                    // Provide more user-friendly error messages
+                    val userFriendlyError = when {
+                        errorMsg.contains("email-already-in-use", ignoreCase = true) -> "Email already registered"
+                        errorMsg.contains("invalid-email", ignoreCase = true) -> "Invalid email format"
+                        errorMsg.contains("weak-password", ignoreCase = true) -> "Password is too weak"
+                        errorMsg.contains("network", ignoreCase = true) -> "Network error. Please check your connection"
+                        else -> "Registration failed: $errorMsg"
+                    }
+                    _authState.value = AuthState.Error(userFriendlyError)
+                }
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error(e.message ?: "Registration failed")
             }
         }
     }
 
     fun logout() {
         viewModelScope.launch {
-            authRepository.logout()
-            _currentUser.value = null
-            _authState.value = AuthState.Unauthenticated
+            try {
+                _authState.value = AuthState.Loading
+                authRepository.logout()
+                _currentUser.value = null
+                _authState.value = AuthState.Unauthenticated
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error("Logout failed: ${e.message}")
+            }
         }
     }
 }

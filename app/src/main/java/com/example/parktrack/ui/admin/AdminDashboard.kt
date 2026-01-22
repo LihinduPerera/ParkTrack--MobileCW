@@ -15,13 +15,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.parktrack.viewmodel.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminDashboard(
-    viewModel: AuthViewModel = hiltViewModel()
+    onLogout: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -57,9 +55,9 @@ fun AdminDashboard(
                     )
                 }
             }
-            
+
             Button(
-                onClick = { viewModel.logout() },
+                onClick = onLogout,
                 modifier = Modifier.padding(top = 24.dp)
             ) {
                 Text("Logout")
