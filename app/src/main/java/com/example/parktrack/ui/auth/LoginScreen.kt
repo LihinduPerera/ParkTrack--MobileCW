@@ -31,7 +31,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.parktrack.R
 import com.example.parktrack.ui.components.AuthButton
@@ -46,7 +45,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun LoginScreen(
     navController: NavController,
-    viewModel: AuthViewModel = hiltViewModel(),
+    viewModel: AuthViewModel,
     onNavigateToRegister: () -> Unit = { navController.navigate("register") }
 ) {
     var email by remember { mutableStateOf("") }
@@ -54,7 +53,6 @@ fun LoginScreen(
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
-
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -72,19 +70,16 @@ fun LoginScreen(
             is AuthState.Authenticated -> {
                 isLoading = false
                 successMessage = "Login successful!"
-
                 // Show success message briefly
                 scope.launch {
                     snackbarHostState.showSnackbar("Login successful!")
                 }
-
                 // Navigation is handled by ParkTrackNavHost based on user role
             }
             is AuthState.Error -> {
                 isLoading = false
                 errorMessage = state.message
                 successMessage = null
-
                 // Show error message in snackbar
                 scope.launch {
                     snackbarHostState.showSnackbar(state.message)
@@ -114,9 +109,7 @@ fun LoginScreen(
             contentDescription = "App Logo",
             modifier = Modifier.size(120.dp)
         )
-
         Spacer(modifier = Modifier.height(24.dp))
-
         // Title
         Text(
             text = "Welcome to ParkTrack",
@@ -124,17 +117,13 @@ fun LoginScreen(
             fontWeight = FontWeight.Bold,
             color = PrimaryColor
         )
-
         Spacer(modifier = Modifier.height(8.dp))
-
         Text(
             text = "Sign in to continue",
             style = MaterialTheme.typography.bodyMedium,
             color = Color.Gray
         )
-
         Spacer(modifier = Modifier.height(32.dp))
-
         // Email Field
         InputField(
             value = email,
@@ -145,7 +134,6 @@ fun LoginScreen(
             label = "Email",
             keyboardType = KeyboardType.Email
         )
-
         // Password Field
         InputField(
             value = password,
@@ -156,7 +144,6 @@ fun LoginScreen(
             label = "Password",
             isPassword = true
         )
-
         // Error Message
         if (!errorMessage.isNullOrEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
@@ -166,7 +153,6 @@ fun LoginScreen(
                 style = MaterialTheme.typography.bodySmall
             )
         }
-
         // Success Message
         if (!successMessage.isNullOrEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
@@ -176,9 +162,7 @@ fun LoginScreen(
                 style = MaterialTheme.typography.bodySmall
             )
         }
-
         Spacer(modifier = Modifier.height(24.dp))
-
         // Login Button
         AuthButton(
             text = "Sign In",
@@ -192,9 +176,7 @@ fun LoginScreen(
             isLoading = isLoading || isCheckingAuth,
             enabled = email.isNotEmpty() && password.isNotEmpty() && !isLoading
         )
-
         Spacer(modifier = Modifier.height(16.dp))
-
         // Sign Up Link
         TextButton(
             onClick = onNavigateToRegister
@@ -205,7 +187,6 @@ fun LoginScreen(
             )
         }
     }
-
     // Snackbar for messages
     SnackbarHost(
         hostState = snackbarHostState,

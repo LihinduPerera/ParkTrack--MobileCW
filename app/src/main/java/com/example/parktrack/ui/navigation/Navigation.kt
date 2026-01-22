@@ -5,7 +5,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -28,9 +27,9 @@ sealed class Screen(val route: String) {
 @Composable
 fun ParkTrackNavHost(
     navController: NavHostController = rememberNavController(),
-    startDestination: String = Screen.Login.route
+    startDestination: String = Screen.Login.route,
+    authViewModel: AuthViewModel
 ) {
-    val authViewModel: AuthViewModel = hiltViewModel()
     val authState by authViewModel.authState.collectAsState()
     val isCheckingAuth by authViewModel.isCheckingAuth.collectAsState()
     val scope = rememberCoroutineScope()
@@ -41,7 +40,6 @@ fun ParkTrackNavHost(
             is AuthState.Authenticated -> {
                 val state = authState as AuthState.Authenticated
                 val currentRoute = navController.currentDestination?.route
-
                 // Navigate to appropriate dashboard if not already there
                 when (state.user.role) {
                     com.example.parktrack.data.model.UserRole.DRIVER -> {
@@ -84,21 +82,21 @@ fun ParkTrackNavHost(
         composable(Screen.Login.route) {
             LoginScreen(
                 navController = navController,
+                viewModel = authViewModel,
                 onNavigateToRegister = {
                     navController.navigate(Screen.Register.route)
                 }
             )
         }
-
         composable(Screen.Register.route) {
             RegisterScreen(
                 navController = navController,
+                viewModel = authViewModel,
                 onNavigateToLogin = {
                     navController.navigate(Screen.Login.route)
                 }
             )
         }
-
         composable(Screen.DriverDashboard.route) {
             DriverDashboard(
                 onLogout = {
@@ -108,7 +106,6 @@ fun ParkTrackNavHost(
                 }
             )
         }
-
         composable(Screen.AdminDashboard.route) {
             AdminDashboard(
                 onLogout = {

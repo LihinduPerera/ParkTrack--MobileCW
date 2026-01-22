@@ -33,7 +33,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.parktrack.data.model.UserRole
 import com.example.parktrack.ui.components.AuthButton
@@ -48,7 +47,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun RegisterScreen(
     navController: NavController,
-    viewModel: AuthViewModel = hiltViewModel(),
+    viewModel: AuthViewModel,
     onNavigateToLogin: () -> Unit = { navController.navigate("login") }
 ) {
     var fullName by remember { mutableStateOf("") }
@@ -61,7 +60,6 @@ fun RegisterScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
     var passwordMismatchError by remember { mutableStateOf(false) }
-
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -79,19 +77,16 @@ fun RegisterScreen(
             is AuthState.Authenticated -> {
                 isLoading = false
                 successMessage = "Registration successful!"
-
                 // Show success message briefly
                 scope.launch {
                     snackbarHostState.showSnackbar("Registration successful!")
                 }
-
                 // Navigation is handled by ParkTrackNavHost based on user role
             }
             is AuthState.Error -> {
                 isLoading = false
                 errorMessage = state.message
                 successMessage = null
-
                 // Show error message in snackbar
                 scope.launch {
                     snackbarHostState.showSnackbar(state.message)
@@ -122,17 +117,13 @@ fun RegisterScreen(
             fontWeight = FontWeight.Bold,
             color = PrimaryColor
         )
-
         Spacer(modifier = Modifier.height(8.dp))
-
         Text(
             text = "Join ParkTrack today",
             style = MaterialTheme.typography.bodyMedium,
             color = Color.Gray
         )
-
         Spacer(modifier = Modifier.height(32.dp))
-
         // Full Name Field
         InputField(
             value = fullName,
@@ -142,7 +133,6 @@ fun RegisterScreen(
             },
             label = "Full Name"
         )
-
         // Email Field
         InputField(
             value = email,
@@ -153,7 +143,6 @@ fun RegisterScreen(
             label = "Email",
             keyboardType = KeyboardType.Email
         )
-
         // Phone Number Field
         InputField(
             value = phoneNumber,
@@ -164,7 +153,6 @@ fun RegisterScreen(
             label = "Phone Number",
             keyboardType = KeyboardType.Phone
         )
-
         // Password Field
         InputField(
             value = password,
@@ -176,7 +164,6 @@ fun RegisterScreen(
             label = "Password",
             isPassword = true
         )
-
         // Confirm Password Field
         InputField(
             value = confirmPassword,
@@ -188,7 +175,6 @@ fun RegisterScreen(
             label = "Confirm Password",
             isPassword = true
         )
-
         // Password mismatch error
         if (passwordMismatchError) {
             Spacer(modifier = Modifier.height(8.dp))
@@ -198,9 +184,7 @@ fun RegisterScreen(
                 style = MaterialTheme.typography.bodySmall
             )
         }
-
         Spacer(modifier = Modifier.height(16.dp))
-
         // Role Selection
         Text(
             text = "Select Role",
@@ -208,9 +192,7 @@ fun RegisterScreen(
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.fillMaxWidth()
         )
-
         Spacer(modifier = Modifier.height(8.dp))
-
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -237,7 +219,6 @@ fun RegisterScreen(
                     modifier = Modifier.padding(start = 8.dp)
                 )
             }
-
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -260,7 +241,6 @@ fun RegisterScreen(
                 )
             }
         }
-
         // Error Message
         if (!errorMessage.isNullOrEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
@@ -270,7 +250,6 @@ fun RegisterScreen(
                 style = MaterialTheme.typography.bodySmall
             )
         }
-
         // Success Message
         if (!successMessage.isNullOrEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
@@ -280,9 +259,7 @@ fun RegisterScreen(
                 style = MaterialTheme.typography.bodySmall
             )
         }
-
         Spacer(modifier = Modifier.height(24.dp))
-
         // Register Button
         AuthButton(
             text = "Create Account",
@@ -293,28 +270,23 @@ fun RegisterScreen(
                     errorMessage = "Please fill in all fields"
                     return@AuthButton
                 }
-
                 if (password != confirmPassword) {
                     passwordMismatchError = true
                     errorMessage = "Passwords do not match"
                     return@AuthButton
                 }
-
                 // Additional validation
                 if (password.length < 6) {
                     errorMessage = "Password must be at least 6 characters"
                     return@AuthButton
                 }
-
                 if (!email.contains("@")) {
                     errorMessage = "Please enter a valid email address"
                     return@AuthButton
                 }
-
                 // Clear any previous errors
                 passwordMismatchError = false
                 errorMessage = null
-
                 // Call registration
                 viewModel.register(email, password, fullName, phoneNumber, selectedRole)
             },
@@ -326,9 +298,7 @@ fun RegisterScreen(
                     confirmPassword.isNotEmpty() &&
                     !isLoading
         )
-
         Spacer(modifier = Modifier.height(16.dp))
-
         // Sign In Link
         TextButton(
             onClick = onNavigateToLogin
@@ -339,7 +309,6 @@ fun RegisterScreen(
             )
         }
     }
-
     // Snackbar for messages
     SnackbarHost(
         hostState = snackbarHostState,
