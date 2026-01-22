@@ -1,4 +1,3 @@
-
 package com.example.parktrack.ui.admin
 
 import androidx.compose.animation.AnimatedVisibility
@@ -8,11 +7,16 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -30,7 +34,8 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminDashboard(
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onScanQRCode: () -> Unit
 ) {
     var showContent by remember { mutableStateOf(false) }
 
@@ -51,14 +56,16 @@ fun AdminDashboard(
                 .padding(paddingValues)
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             AnimatedVisibility(
                 visible = showContent,
                 enter = scaleIn(animationSpec = tween(600)) + fadeIn(animationSpec = tween(600))
             ) {
                 Card(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                     shape = MaterialTheme.shapes.large
                 ) {
@@ -79,9 +86,39 @@ fun AdminDashboard(
                     }
                 }
             }
+            
+            // Scan QR Code Button
+            Button(
+                onClick = onScanQRCode,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Icon(
+                    imageVector = Icons.Default.QrCode,
+                    contentDescription = "Scan QR Code",
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+                Text(
+                    text = "Scan QR Code",
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+            
+            // Logout Button
             Button(
                 onClick = onLogout,
-                modifier = Modifier.padding(top = 24.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
             ) {
                 Text("Logout")
             }
