@@ -1,5 +1,11 @@
+
 package com.example.parktrack.ui.auth
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -27,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -53,12 +60,16 @@ fun LoginScreen(
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
+    var showContent by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-
     // Collect auth state as State
     val authState by viewModel.authState.collectAsState()
     val isCheckingAuth by viewModel.isCheckingAuth.collectAsState()
+
+    LaunchedEffect(Unit) {
+        showContent = true
+    }
 
     LaunchedEffect(authState) {
         when (val state = authState) {
@@ -94,7 +105,6 @@ fun LoginScreen(
             }
         }
     }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -103,27 +113,35 @@ fun LoginScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Logo
-        Image(
-            painter = painterResource(id = R.drawable.ic_launcher_foreground),
-            contentDescription = "App Logo",
-            modifier = Modifier.size(120.dp)
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        // Title
-        Text(
-            text = "Welcome to ParkTrack",
-            style = MaterialTheme.typography.displaySmall,
-            fontWeight = FontWeight.Bold,
-            color = PrimaryColor
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Sign in to continue",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.Gray
-        )
-        Spacer(modifier = Modifier.height(32.dp))
+        AnimatedVisibility(
+            visible = showContent,
+            enter = slideInVertically(initialOffsetY = { 1000 }, animationSpec = tween(800)) + fadeIn(animationSpec = tween(800))
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // Logo
+                Image(
+                    painter = painterResource(R.drawable.park_track),
+                    contentDescription = "ParkTrack Logo",
+                    modifier = Modifier.size(120.dp),
+                    contentScale = ContentScale.Fit
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                // Title
+                Text(
+                    text = "Welcome to ParkTrack",
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryColor
+                )
+//                Spacer(modifier = Modifier.height(8.dp))
+//                Text(
+//                    text = "Sign in to continue",
+//                    style = MaterialTheme.typography.bodyMedium,
+//                    color = Color.Gray
+//                )
+                Spacer(modifier = Modifier.height(32.dp))
+            }
+        }
         // Email Field
         InputField(
             value = email,
@@ -144,23 +162,33 @@ fun LoginScreen(
             label = "Password",
             isPassword = true
         )
-        // Error Message
-        if (!errorMessage.isNullOrEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = errorMessage!!,
-                color = ErrorColor,
-                style = MaterialTheme.typography.bodySmall
-            )
+        AnimatedVisibility(
+            visible = !errorMessage.isNullOrEmpty(),
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            if (!errorMessage.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = errorMessage!!,
+                    color = ErrorColor,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         }
-        // Success Message
-        if (!successMessage.isNullOrEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = successMessage!!,
-                color = SuccessColor,
-                style = MaterialTheme.typography.bodySmall
-            )
+        AnimatedVisibility(
+            visible = !successMessage.isNullOrEmpty(),
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            if (!successMessage.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = successMessage!!,
+                    color = SuccessColor,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         }
         Spacer(modifier = Modifier.height(24.dp))
         // Login Button

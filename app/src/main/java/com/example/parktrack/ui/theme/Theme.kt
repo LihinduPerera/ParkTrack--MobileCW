@@ -1,7 +1,8 @@
+
 package com.example.parktrack.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -10,13 +11,15 @@ import androidx.compose.ui.graphics.Color
 private val DarkColorScheme = darkColorScheme(
     primary = PrimaryColor,
     secondary = SecondaryColor,
-    background = Color.Black,
-    surface = Color(0xFF121212),
+    background = BackgroundColor,
+    surface = SurfaceColor,
     error = ErrorColor,
     onPrimary = OnPrimary,
     onSecondary = OnSecondary,
-    onBackground = OnPrimary,
-    onSurface = OnPrimary
+    onBackground = OnBackground,
+    onSurface = OnSurface,
+    surfaceVariant = Color(0xFF2C2C2E),
+    onSurfaceVariant = Color(0xFFAEAEB2)
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -33,14 +36,15 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun ParkTrackTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = true, // Force dark theme for dark modern look
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
-    
+
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = Shapes(),
         content = content
     )
 }

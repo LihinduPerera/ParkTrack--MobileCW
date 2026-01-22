@@ -1,5 +1,11 @@
+
 package com.example.parktrack.ui.auth
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -60,12 +66,16 @@ fun RegisterScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
     var passwordMismatchError by remember { mutableStateOf(false) }
+    var showContent by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-
     // Collect auth state as State
     val authState by viewModel.authState.collectAsState()
     val isCheckingAuth by viewModel.isCheckingAuth.collectAsState()
+
+    LaunchedEffect(Unit) {
+        showContent = true
+    }
 
     LaunchedEffect(authState) {
         when (val state = authState) {
@@ -101,7 +111,6 @@ fun RegisterScreen(
             }
         }
     }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -110,20 +119,28 @@ fun RegisterScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Title
-        Text(
-            text = "Create Account",
-            style = MaterialTheme.typography.displaySmall,
-            fontWeight = FontWeight.Bold,
-            color = PrimaryColor
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Join ParkTrack today",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.Gray
-        )
-        Spacer(modifier = Modifier.height(32.dp))
+        AnimatedVisibility(
+            visible = showContent,
+            enter = slideInVertically(initialOffsetY = { 1000 }, animationSpec = tween(800)) + fadeIn(animationSpec = tween(800))
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Spacer(modifier = Modifier.height(32.dp))
+                // Title
+                Text(
+                    text = "Create Account",
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryColor
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Join ParkTrack today",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray
+                )
+                Spacer(modifier = Modifier.height(32.dp))
+            }
+        }
         // Full Name Field
         InputField(
             value = fullName,
@@ -175,8 +192,11 @@ fun RegisterScreen(
             label = "Confirm Password",
             isPassword = true
         )
-        // Password mismatch error
-        if (passwordMismatchError) {
+        AnimatedVisibility(
+            visible = passwordMismatchError,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Passwords do not match",
@@ -192,15 +212,16 @@ fun RegisterScreen(
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.fillMaxWidth()
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        Column(
+//        Spacer(modifier = Modifier.height(1.dp))
+        Row(
+            horizontalArrangement = Arrangement.SpaceEvenly,
             modifier = Modifier
                 .fillMaxWidth()
                 .selectableGroup()
         ) {
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
+//                    .fillMaxWidth()
                     .selectable(
                         selected = selectedRole == UserRole.DRIVER,
                         onClick = { selectedRole = UserRole.DRIVER },
@@ -221,7 +242,7 @@ fun RegisterScreen(
             }
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
+//                    .fillMaxWidth()
                     .selectable(
                         selected = selectedRole == UserRole.ADMIN,
                         onClick = { selectedRole = UserRole.ADMIN },
@@ -241,25 +262,35 @@ fun RegisterScreen(
                 )
             }
         }
-        // Error Message
-        if (!errorMessage.isNullOrEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = errorMessage!!,
-                color = ErrorColor,
-                style = MaterialTheme.typography.bodySmall
-            )
+        AnimatedVisibility(
+            visible = !errorMessage.isNullOrEmpty(),
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            if (!errorMessage.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = errorMessage!!,
+                    color = ErrorColor,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         }
-        // Success Message
-        if (!successMessage.isNullOrEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = successMessage!!,
-                color = SuccessColor,
-                style = MaterialTheme.typography.bodySmall
-            )
+        AnimatedVisibility(
+            visible = !successMessage.isNullOrEmpty(),
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            if (!successMessage.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = successMessage!!,
+                    color = SuccessColor,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         }
-        Spacer(modifier = Modifier.height(24.dp))
+//        Spacer(modifier = Modifier.height(24.dp))
         // Register Button
         AuthButton(
             text = "Create Account",
@@ -298,7 +329,7 @@ fun RegisterScreen(
                     confirmPassword.isNotEmpty() &&
                     !isLoading
         )
-        Spacer(modifier = Modifier.height(16.dp))
+//        Spacer(modifier = Modifier.height(16.dp))
         // Sign In Link
         TextButton(
             onClick = onNavigateToLogin
