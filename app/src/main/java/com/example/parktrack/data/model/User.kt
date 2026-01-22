@@ -6,6 +6,7 @@ data class User(
     val fullName: String = "",
     val role: UserRole = UserRole.DRIVER,
     val phoneNumber: String = "",
+    val vehicleNumber: String = "",
     val createdAt: Long = System.currentTimeMillis(),
     val profileImageUrl: String = "",
     val isVerified: Boolean = false
