@@ -54,6 +54,9 @@ class AdminScannerViewModel @Inject constructor(
     private val _recentScans = MutableStateFlow<List<ParkingSession>>(emptyList())
     val recentScans: StateFlow<List<ParkingSession>> = _recentScans.asStateFlow()
     
+    private val _activeSessions = MutableStateFlow<List<ParkingSession>>(emptyList())
+    val activeSessions: StateFlow<List<ParkingSession>> = _activeSessions.asStateFlow()
+    
     private val _currentAdmin = MutableStateFlow<User?>(null)
     val currentAdmin: StateFlow<User?> = _currentAdmin.asStateFlow()
     
@@ -66,6 +69,7 @@ class AdminScannerViewModel @Inject constructor(
     init {
         fetchCurrentAdmin()
         fetchRecentScans()
+        listenToActiveSessions()
     }
     
     fun setGate(gate: String) {
@@ -219,8 +223,19 @@ class AdminScannerViewModel @Inject constructor(
             val result = parkingSessionRepository.completeSession(activeSession.id, exitTime)
             
             if (result.isSuccess) {
+                val duration = parkingSessionRepository.calculateDuration(
+                    activeSession.entryTime!!, 
+                    exitTime
+                )
+                
+                val hours = duration / 60
+                val minutes = duration % 60
+                val durationStr = if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
+                
                 _scanState.value = ScanState.SUCCESS
-                _scanResultMessage.value = "Exit recorded for ${driver.fullName}"
+                _scanResultMessage.value = "Exit recorded. Duration: $durationStr"
+                
+                // Update recent scans
                 fetchRecentScans()
             } else {
                 _scanState.value = ScanState.ERROR
@@ -266,4 +281,69 @@ class AdminScannerViewModel @Inject constructor(
         _scannedDriver.value = null
         _sessionType.value = ""
     }
-}
+    
+    /**
+     * Listen to all active parking sessions
+     */
+    private fun listenToActiveSessions() {
+        viewModelScope.launch {
+            try {
+                parkingSessionRepository.observeAllActiveSessions()
+                    .collect { sessions ->
+                        _activeSessions.value = sessions
+                    }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+    
+    /**
+     * Manual exit for a session (admin can mark exit without QR)
+     */
+    fun manualExit(sessionId: String) {
+        viewModelScope.launch {
+            try {
+                val session = parkingSessionRepository.getSessionById(sessionId).getOrNull()
+                if (session == null) {
+                    _scanState.value = ScanState.ERROR
+                    _scanResultMessage.value = "Session not found"
+                    return@launch
+                }
+                
+                val exitTime = Timestamp.now()
+                val result = parkingSessionRepository.completeSession(sessionId, exitTime)
+                
+                if (result.isSuccess) {
+                    val duration = parkingSessionRepository.calculateDuration(
+                        session.entryTime!!,
+                        exitTime
+                    )
+                    
+                    val hours = duration / 60
+                    val minutes = duration % 60
+                    val durationStr = if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
+                    
+                    _scanState.value = ScanState.SUCCESS
+                    _scanResultMessage.value = "Manual exit recorded. Duration: $durationStr"
+                    
+                    _scannedDriver.value = com.example.parktrack.data.model.User(
+                        id = session.driverId,
+                        fullName = session.driverName,
+                        vehicleNumber = session.vehicleNumber
+                    )
+                    _sessionType.value = "EXIT"
+                    
+                    fetchRecentScans()
+                    listenToActiveSessions()
+                } else {
+                    _scanState.value = ScanState.ERROR
+                    _scanResultMessage.value = "Failed to record manual exit"
+                }
+            } catch (e: Exception) {
+                _scanState.value = ScanState.ERROR
+                _scanResultMessage.value = "Error: ${e.message}"
+                e.printStackTrace()
+            }
+        }
+    }

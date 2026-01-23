@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.parktrack.ui.components.EnhancedParkingStatusCard
 import com.example.parktrack.ui.components.QRCodeDialog
 import com.example.parktrack.utils.ParkingHelper
 import com.example.parktrack.viewmodel.DriverQRViewModel
@@ -52,6 +53,8 @@ fun DriverDashboard(
     val qrCountdown by viewModel.qrCountdown.collectAsStateWithLifecycle()
     val qrCodeData by viewModel.qrCodeData.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val parkingDuration by viewModel.parkingDuration.collectAsStateWithLifecycle()
+    val hasActiveSession by viewModel.hasActiveSession.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         showContent = true
@@ -104,48 +107,12 @@ fun DriverDashboard(
                 }
             }
             
-            // Parking Status Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                shape = MaterialTheme.shapes.medium
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    if (activeSession != null) {
-                        Text(
-                            text = "Currently Parked",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = "Gate: ${activeSession?.gateLocation ?: "Unknown"}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                        Text(
-                            text = "Since: ${ParkingHelper.formatTimestamp(activeSession?.entryTime)}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    } else {
-                        Text(
-                            text = "Not Currently Parked",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                        Text(
-                            text = "Generate a QR code to enter the parking",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-                }
-            }
+            // Enhanced Parking Status Card
+            EnhancedParkingStatusCard(
+                session = activeSession,
+                duration = parkingDuration,
+                modifier = Modifier.fillMaxWidth()
+            )
             
             // Generate QR Code Button
             Button(

@@ -16,9 +16,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import android.graphics.Bitmap
 import javax.inject.Inject
+import java.util.concurrent.TimeUnit
 
 @HiltViewModel
 class DriverQRViewModel @Inject constructor(
@@ -50,8 +52,15 @@ class DriverQRViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
     
+    private val _parkingDuration = MutableStateFlow("0h 0m")
+    val parkingDuration: StateFlow<String> = _parkingDuration.asStateFlow()
+    
+    private val _hasActiveSession = MutableStateFlow(false)
+    val hasActiveSession: StateFlow<Boolean> = _hasActiveSession.asStateFlow()
+    
     private var qrRefreshJob: Job? = null
     private var sessionListenerJob: Job? = null
+    private var durationJob: Job? = null
     
     init {
         fetchUserData()
@@ -80,30 +89,65 @@ class DriverQRViewModel @Inject constructor(
     /**
      * Listen to active parking session in real-time
      */
-    fun listenToActiveSession() {
+    private fun listenToActiveSession() {
         sessionListenerJob?.cancel()
         
         val userId = auth.currentUser?.uid ?: return
         
-        firestore.collection("parkingSessions")
-            .whereEqualTo("driverId", userId)
-            .whereEqualTo("status", "ACTIVE")
-            .limit(1)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    error.printStackTrace()
-                    return@addSnapshotListener
-                }
-                
-                val session = snapshot?.documents?.firstOrNull()
-                    ?.toObject(ParkingSession::class.java)
-                
-                _activeSession.value = session
+        sessionListenerJob = viewModelScope.launch {
+            try {
+                parkingSessionRepository.observeActiveSession(userId)
+                    .collectLatest { session ->
+                        _activeSession.value = session
+                        _hasActiveSession.value = session != null
+                        
+                        // Manage duration counter
+                        if (session != null && session.entryTime != null) {
+                            startDurationCounter(session.entryTime!!)
+                        } else {
+                            durationJob?.cancel()
+                            _parkingDuration.value = "0h 0m"
+                        }
+                    }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
+        }
     }
     
     /**
-     * Generate QR code for parking entry
+     * Start duration counter (updates every minute)
+     */
+    private fun startDurationCounter(entryTime: com.google.firebase.Timestamp) {
+        durationJob?.cancel()
+        
+        durationJob = viewModelScope.launch {
+            while (true) {
+                try {
+                    val now = System.currentTimeMillis()
+                    val entryMillis = entryTime.toDate().time
+                    val durationMillis = now - entryMillis
+                    
+                    val hours = TimeUnit.MILLISECONDS.toHours(durationMillis)
+                    val minutes = TimeUnit.MILLISECONDS.toMinutes(durationMillis) % 60
+                    
+                    _parkingDuration.value = if (hours > 0) {
+                        "${hours}h ${minutes}m"
+                    } else {
+                        "${minutes}m"
+                    }
+                    
+                    delay(60000) // Update every minute
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    break
+                }
+            }
+        }
+    }
+    
+    /**
+     * Generate QR code for parking entry/exit
      */
     fun generateQRCode() {
         viewModelScope.launch {
@@ -182,5 +226,6 @@ class DriverQRViewModel @Inject constructor(
         super.onCleared()
         qrRefreshJob?.cancel()
         sessionListenerJob?.cancel()
+        durationJob?.cancel()
     }
 }
