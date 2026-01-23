@@ -8,9 +8,9 @@ import com.example.parktrack.data.model.User
 import com.example.parktrack.data.repository.ParkingSessionRepository
 import com.example.parktrack.utils.QRCodeValidator
 import com.example.parktrack.utils.ValidationResult
-import com.google.firebase.auth.Firebase
+import com.example.parktrack.utils.ScanDebounceManager
+import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
-import com.google.firebase.firestore.Firebase
 import com.google.firebase.firestore.firestore
 import com.google.firebase.Timestamp
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -66,6 +66,12 @@ class AdminScannerViewModel @Inject constructor(
     private val _scannedDriver = MutableStateFlow<User?>(null)
     val scannedDriver: StateFlow<User?> = _scannedDriver.asStateFlow()
     
+    // Processing lock to prevent duplicate scans
+    private var isProcessing = false
+    private var lastProcessedQRString = ""
+    private var lastProcessedTime = 0L
+    private val SCAN_DEBOUNCE_MS = 3000L // 3 seconds minimum between same QR processing
+    
     init {
         fetchCurrentAdmin()
         fetchRecentScans()
@@ -96,18 +102,34 @@ class AdminScannerViewModel @Inject constructor(
     }
     
     /**
-     * Process scanned QR code string
+     * Process scanned QR code string with debouncing and duplicate prevention
      */
     fun processScannedQR(qrString: String) {
+        // Check if already processing or duplicate scan
+        if (isProcessing) {
+            return // Ignore if already processing
+        }
+        
+        val currentTime = System.currentTimeMillis()
+        // Allow reprocessing same QR only after debounce period
+        if (qrString == lastProcessedQRString && currentTime - lastProcessedTime < SCAN_DEBOUNCE_MS) {
+            return // Ignore duplicate scan too soon
+        }
+        
+        isProcessing = true
+        lastProcessedQRString = qrString
+        lastProcessedTime = currentTime
+        
         viewModelScope.launch {
-            _scanState.value = ScanState.PROCESSING
-            
             try {
+                _scanState.value = ScanState.PROCESSING
+                
                 // Parse QR code
                 val qrData = QRCodeData.fromQRString(qrString)
                 if (qrData == null) {
                     _scanState.value = ScanState.ERROR
                     _scanResultMessage.value = "Invalid QR code format"
+                    isProcessing = false
                     return@launch
                 }
                 
@@ -117,16 +139,19 @@ class AdminScannerViewModel @Inject constructor(
                     is ValidationResult.Expired -> {
                         _scanState.value = ScanState.ERROR
                         _scanResultMessage.value = "QR code expired. Ask driver to generate new one."
+                        isProcessing = false
                         return@launch
                     }
                     is ValidationResult.InvalidHash -> {
                         _scanState.value = ScanState.ERROR
                         _scanResultMessage.value = "Invalid QR code. Security check failed."
+                        isProcessing = false
                         return@launch
                     }
                     is ValidationResult.InvalidFormat -> {
                         _scanState.value = ScanState.ERROR
                         _scanResultMessage.value = "Invalid QR format"
+                        isProcessing = false
                         return@launch
                     }
                     else -> {} // ValidationResult.Valid - continue
@@ -144,6 +169,7 @@ class AdminScannerViewModel @Inject constructor(
                 if (driver == null) {
                     _scanState.value = ScanState.ERROR
                     _scanResultMessage.value = "Driver not found"
+                    isProcessing = false
                     return@launch
                 }
                 
@@ -155,20 +181,61 @@ class AdminScannerViewModel @Inject constructor(
                     .getActiveSessionForDriver(qrData.userId)
                     .getOrNull()
                 
+                val currentSessionStatus = activeSession?.status
+                
+                // Validate QR type matches the operation
+                if (activeSession == null && qrData.qrType == "EXIT") {
+                    // Trying to use EXIT QR without an active session
+                    _scanState.value = ScanState.ERROR
+                    _scanResultMessage.value = "Use ENTRY QR code first. No active session found."
+                    isProcessing = false
+                    return@launch
+                }
+                
+                if (activeSession != null && qrData.qrType == "ENTRY") {
+                    // Trying to use ENTRY QR when session already exists
+                    _scanState.value = ScanState.ERROR
+                    _scanResultMessage.value = "Use EXIT QR code. Driver already has an active session."
+                    isProcessing = false
+                    return@launch
+                }
+                
+                // Use ScanDebounceManager to prevent duplicate scans
+                if (!ScanDebounceManager.shouldProcessScan(qrData.userId, currentSessionStatus)) {
+                    _scanState.value = ScanState.ERROR
+                    _scanResultMessage.value = "Please wait before scanning again"
+                    isProcessing = false
+                    return@launch
+                }
+                
                 if (activeSession == null) {
                     // Entry scan - create new session
                     _sessionType.value = "ENTRY"
-                    createEntrySession(qrData, driver)
+                    try {
+                        createEntrySession(qrData, driver)
+                    } catch (e: Exception) {
+                        _scanState.value = ScanState.ERROR
+                        _scanResultMessage.value = "Error creating entry: ${e.message}"
+                        e.printStackTrace()
+                    }
                 } else {
                     // Exit scan - complete session
                     _sessionType.value = "EXIT"
-                    completeExitSession(qrData, driver, activeSession)
+                    try {
+                        completeExitSession(qrData, driver, activeSession)
+                    } catch (e: Exception) {
+                        _scanState.value = ScanState.ERROR
+                        _scanResultMessage.value = "Error recording exit: ${e.message}"
+                        e.printStackTrace()
+                    }
                 }
                 
             } catch (e: Exception) {
                 _scanState.value = ScanState.ERROR
                 _scanResultMessage.value = "Error processing QR: ${e.message}"
                 e.printStackTrace()
+            } finally {
+                isProcessing = false
             }
         }
     }
@@ -198,14 +265,16 @@ class AdminScannerViewModel @Inject constructor(
             if (result.isSuccess) {
                 _scanState.value = ScanState.SUCCESS
                 _scanResultMessage.value = "Entry recorded for ${driver.fullName}"
+                // Fetch updated scans asynchronously (don't wait for it)
                 fetchRecentScans()
             } else {
+                val error = result.exceptionOrNull()
                 _scanState.value = ScanState.ERROR
-                _scanResultMessage.value = "Failed to record entry"
+                _scanResultMessage.value = "Failed to record entry: ${error?.message ?: "Unknown error"}"
             }
         } catch (e: Exception) {
             _scanState.value = ScanState.ERROR
-            _scanResultMessage.value = "Error: ${e.message}"
+            _scanResultMessage.value = "Error creating session: ${e.message}"
             e.printStackTrace()
         }
     }
@@ -238,12 +307,13 @@ class AdminScannerViewModel @Inject constructor(
                 // Update recent scans
                 fetchRecentScans()
             } else {
+                val error = result.exceptionOrNull()
                 _scanState.value = ScanState.ERROR
-                _scanResultMessage.value = "Failed to record exit"
+                _scanResultMessage.value = "Failed to record exit: ${error?.message ?: "Unknown error"}"
             }
         } catch (e: Exception) {
             _scanState.value = ScanState.ERROR
-            _scanResultMessage.value = "Error: ${e.message}"
+            _scanResultMessage.value = "Error recording exit: ${e.message}"
             e.printStackTrace()
         }
     }
@@ -256,17 +326,37 @@ class AdminScannerViewModel @Inject constructor(
             try {
                 val adminId = auth.currentUser?.uid ?: return@launch
                 
+                // Fetch all sessions by this admin, sorted by entry time
                 val sessions = firestore.collection("parkingSessions")
                     .whereEqualTo("scannedByAdminId", adminId)
-                    .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                    .limit(5)
+                    .orderBy("entryTime", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                    .limit(10)
                     .get()
                     .await()
-                    .toObjects(ParkingSession::class.java)
+                    .mapNotNull { document ->
+                        document.toObject(ParkingSession::class.java)?.copy(id = document.id)
+                    }
                 
                 _recentScans.value = sessions
             } catch (e: Exception) {
                 e.printStackTrace()
+                // If orderBy fails (no index), try without ordering
+                try {
+                    val adminId = auth.currentUser?.uid ?: return@launch
+                    val sessions = firestore.collection("parkingSessions")
+                        .whereEqualTo("scannedByAdminId", adminId)
+                        .limit(10)
+                        .get()
+                        .await()
+                        .mapNotNull { document ->
+                            document.toObject(ParkingSession::class.java)?.copy(id = document.id)
+                        }
+                        .sortedByDescending { it.entryTime?.toDate()?.time ?: 0L }
+                    
+                    _recentScans.value = sessions
+                } catch (e2: Exception) {
+                    e2.printStackTrace()
+                }
             }
         }
     }
@@ -280,6 +370,13 @@ class AdminScannerViewModel @Inject constructor(
         _scannedQRData.value = null
         _scannedDriver.value = null
         _sessionType.value = ""
+        isProcessing = false
+    }
+    
+    override fun onCleared() {
+        super.onCleared()
+        // Clear debounce records when ViewModel is destroyed
+        ScanDebounceManager.clearAll()
     }
     
     /**
@@ -337,8 +434,9 @@ class AdminScannerViewModel @Inject constructor(
                     fetchRecentScans()
                     listenToActiveSessions()
                 } else {
+                    val error = result.exceptionOrNull()
                     _scanState.value = ScanState.ERROR
-                    _scanResultMessage.value = "Failed to record manual exit"
+                    _scanResultMessage.value = "Failed to record manual exit: ${error?.message ?: "Unknown error"}"
                 }
             } catch (e: Exception) {
                 _scanState.value = ScanState.ERROR
@@ -347,3 +445,23 @@ class AdminScannerViewModel @Inject constructor(
             }
         }
     }
+    
+    /**
+     * Record manual exit for a parking session
+     */
+    fun recordManualExit(sessionId: String) {
+        viewModelScope.launch {
+            try {
+                parkingSessionRepository.completeSession(sessionId, Timestamp.now())
+                _scanState.value = ScanState.SUCCESS
+                _scanResultMessage.value = "Manual exit recorded successfully"
+                // Refresh active sessions
+                listenToActiveSessions()
+            } catch (e: Exception) {
+                _scanState.value = ScanState.ERROR
+                _scanResultMessage.value = "Failed to record manual exit: ${e.message}"
+                e.printStackTrace()
+            }
+        }
+    }
+}

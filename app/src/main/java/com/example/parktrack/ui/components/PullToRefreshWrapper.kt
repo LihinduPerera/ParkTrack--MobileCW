@@ -2,6 +2,7 @@ package com.example.parktrack.ui.components
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
@@ -13,6 +14,7 @@ import androidx.compose.ui.Modifier
 /**
  * Wrap composable with pull-to-refresh functionality
  */
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun PullToRefreshWrapper(
     isRefreshing: Boolean,

@@ -1,12 +1,12 @@
 package com.example.parktrack.utils
 
 import android.graphics.Bitmap
+import android.util.Base64
 import com.example.parktrack.data.model.QRCodeData
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
 import java.security.MessageDigest
-import java.util.Base64
 
 object QRCodeGenerator {
     
@@ -46,7 +46,7 @@ object QRCodeGenerator {
         val input = "$userId|$timestamp|PARKTRACK_SECRET_KEY"
         val messageDigest = MessageDigest.getInstance("SHA-256")
         val hashedBytes = messageDigest.digest(input.toByteArray())
-        Base64.getEncoder().encodeToString(hashedBytes)
+        Base64.encodeToString(hashedBytes, Base64.NO_WRAP)
     } catch (e: Exception) {
         ""
     }
@@ -55,9 +55,10 @@ object QRCodeGenerator {
      * Create QRCodeData object with current timestamp
      * @param userId The user ID
      * @param vehicleNumber The vehicle number
+     * @param qrType The type of QR code - "ENTRY" or "EXIT"
      * @return QRCodeData object with generated security hash
      */
-    fun createQRCodeData(userId: String, vehicleNumber: String): QRCodeData {
+    fun createQRCodeData(userId: String, vehicleNumber: String, qrType: String = "ENTRY"): QRCodeData {
         val timestamp = System.currentTimeMillis()
         val hash = generateSecurityHash(userId, timestamp)
         
@@ -65,7 +66,8 @@ object QRCodeGenerator {
             userId = userId,
             vehicleNumber = vehicleNumber,
             timestamp = timestamp,
-            securityHash = hash
+            securityHash = hash,
+            qrType = qrType
         )
     }
 }

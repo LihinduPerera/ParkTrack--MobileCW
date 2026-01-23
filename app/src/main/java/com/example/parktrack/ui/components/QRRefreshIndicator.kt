@@ -2,16 +2,20 @@ package com.example.parktrack.ui.components
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,6 +39,9 @@ fun QRRefreshIndicator(
         else -> Color(0xFFF44336)                   // Red
     }
     
+    // Capture theme color before Canvas (Canvas is not a @Composable context)
+    val surfaceVariantColor = MaterialTheme.colorScheme.surfaceVariant
+    
     Box(
         modifier = modifier.size(80.dp),
         contentAlignment = Alignment.Center
@@ -42,7 +49,7 @@ fun QRRefreshIndicator(
         Canvas(modifier = Modifier.size(80.dp)) {
             // Background circle
             drawCircle(
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                color = surfaceVariantColor,
                 radius = size.minDimension / 2 - 4.dp.toPx(),
                 style = Stroke(width = 4.dp.toPx())
             )
@@ -84,18 +91,21 @@ fun QRRefreshAnimation(
             animation = tween(1000, easing = LinearEasing)
         ),
         label = "qr_rotation"
-    ) if isRefreshing else { byState { 0f } }
+    )
     
-    Box(
-        modifier = modifier
-            .size(48.dp)
-            .graphicsLayer { rotationZ = if (isRefreshing) rotation else 0f },
-        contentAlignment = Alignment.Center
-    ) {
-        LoadingSpinner(
-            modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.primary
-        )
+    if (isRefreshing) {
+        Box(
+            modifier = modifier
+                .size(48.dp)
+                .graphicsLayer { rotationZ = rotation },
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.primary,
+                strokeWidth = 2.dp
+            )
+        }
     }
 }
 

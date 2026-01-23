@@ -6,9 +6,8 @@ import com.example.parktrack.data.model.ParkingSession
 import com.example.parktrack.data.model.User
 import com.example.parktrack.data.repository.ParkingSessionRepository
 import com.example.parktrack.utils.QRCodeGenerator
-import com.google.firebase.auth.Firebase
+import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
-import com.google.firebase.firestore.Firebase
 import com.google.firebase.firestore.firestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -148,8 +147,9 @@ class DriverQRViewModel @Inject constructor(
     
     /**
      * Generate QR code for parking entry/exit
+     * @param qrType "ENTRY" or "EXIT" - determines the type of QR code generated
      */
-    fun generateQRCode() {
+    fun generateQRCode(qrType: String = "ENTRY") {
         viewModelScope.launch {
             val user = _currentUser.value
             if (user == null) {
@@ -161,10 +161,11 @@ class DriverQRViewModel @Inject constructor(
             _isLoading.value = true
             
             try {
-                // Create QR data with vehicle number
+                // Create QR data with vehicle number and QR type
                 val qrData = QRCodeGenerator.createQRCodeData(
                     userId = user.id,
-                    vehicleNumber = user.vehicleNumber.ifEmpty { user.phoneNumber }
+                    vehicleNumber = user.vehicleNumber.ifEmpty { user.phoneNumber },
+                    qrType = qrType
                 )
                 
                 // Generate QR string

@@ -35,8 +35,9 @@ object VibrationHelper {
         val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
         if (vibrator?.hasVibrator() == true) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val amplitudes = intArrayOf(0, 50, 30, 50, 30)
-                vibrator.vibrate(VibrationEffect.createWaveform(amplitudes))
+                val timings = longArrayOf(0L, 50L, 30L, 50L, 30L)
+                val amplitudes = intArrayOf(0, 100, 100, 100, 100)
+                vibrator.vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
             } else {
                 @Suppress("DEPRECATION")
                 vibrator.vibrate(longArrayOf(0, 50, 30, 50, 30), -1)

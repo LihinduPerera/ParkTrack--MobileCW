@@ -16,10 +16,11 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.parktrack.data.model.ParkingSession
 import com.example.parktrack.ui.components.ManualExitConfirmDialog
-import com.example.parktrack.ui.viewmodels.AdminScannerViewModel
+import com.example.parktrack.viewmodel.AdminScannerViewModel
 import com.example.parktrack.utils.ParkingHelper
 import com.google.firebase.Timestamp
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminActiveSessionsScreen(
     viewModel: AdminScannerViewModel = hiltViewModel(),
@@ -42,11 +43,7 @@ fun AdminActiveSessionsScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, "Back")
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                }
             )
             
             // Session count
@@ -136,7 +133,7 @@ fun AdminActiveSessionsScreen(
                 showExitDialog = false
                 selectedSessionForExit = null
             },
-            onDismiss = {
+            onCancel = {
                 showExitDialog = false
                 selectedSessionForExit = null
             }

@@ -1,5 +1,6 @@
 package com.example.parktrack.utils
 
+import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
@@ -22,8 +23,10 @@ class BarcodeAnalyzer(
     )
     
     private var lastScanTime = 0L
-    private val scanDebounce = 2000L // 2 seconds between scans
+    private var lastScannedValue = ""
+    private val scanDebounce = 3000L // 3 seconds between same QR scans
     
+    @androidx.annotation.OptIn(ExperimentalGetImage::class)
     override fun analyze(imageProxy: ImageProxy) {
         val mediaImage = imageProxy.image
         if (mediaImage != null) {
@@ -38,8 +41,10 @@ class BarcodeAnalyzer(
                         for (barcode in barcodes) {
                             barcode.rawValue?.let { qrString ->
                                 val currentTime = System.currentTimeMillis()
-                                if (currentTime - lastScanTime > scanDebounce) {
+                                // Only trigger if enough time passed OR it's a different QR code
+                                if (currentTime - lastScanTime > scanDebounce || qrString != lastScannedValue) {
                                     lastScanTime = currentTime
+                                    lastScannedValue = qrString
                                     Log.d("BarcodeAnalyzer", "QR Code detected: $qrString")
                                     onBarcodeDetected(qrString)
                                 }

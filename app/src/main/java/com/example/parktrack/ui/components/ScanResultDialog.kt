@@ -61,7 +61,7 @@ fun ScanSuccessDialog(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = "Success",
                     modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = Color(0xFF4CAF50) // Green color for success
                 )
                 
                 // Title

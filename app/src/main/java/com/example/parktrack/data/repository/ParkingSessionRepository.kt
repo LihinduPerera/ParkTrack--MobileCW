@@ -1,7 +1,8 @@
 package com.example.parktrack.data.repository
 
 import com.example.parktrack.data.model.ParkingSession
-import com.google.firebase.firestore.Firebase
+import com.google.firebase.Firebase
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
 import com.google.firebase.Timestamp
 import kotlinx.coroutines.channels.awaitClose
@@ -9,9 +10,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import java.util.concurrent.TimeUnit
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class ParkingSessionRepository {
-    private val firestore = Firebase.firestore
+@Singleton
+class ParkingSessionRepository @Inject constructor(
+    private val firestore: FirebaseFirestore
+) {
     private val sessionsCollection = "parkingSessions"
     
     /**

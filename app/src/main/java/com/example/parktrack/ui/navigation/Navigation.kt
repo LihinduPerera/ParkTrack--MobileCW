@@ -10,6 +10,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.parktrack.ui.admin.AdminDashboard
+import com.example.parktrack.ui.admin.QRScannerScreen
 import com.example.parktrack.ui.auth.LoginScreen
 import com.example.parktrack.ui.auth.RegisterScreen
 import com.example.parktrack.ui.driver.DriverDashboard
@@ -22,6 +23,7 @@ sealed class Screen(val route: String) {
     object Register : Screen("register")
     object DriverDashboard : Screen("driver_dashboard")
     object AdminDashboard : Screen("admin_dashboard")
+    object QRScanner : Screen("qr_scanner")
 }
 
 @Composable
@@ -112,6 +114,16 @@ fun ParkTrackNavHost(
                     scope.launch {
                         authViewModel.logout()
                     }
+                },
+                onScanQRCode = {
+                    navController.navigate(Screen.QRScanner.route)
+                }
+            )
+        }
+        composable(Screen.QRScanner.route) {
+            QRScannerScreen(
+                onBackPress = {
+                    navController.popBackStack()
                 }
             )
         }

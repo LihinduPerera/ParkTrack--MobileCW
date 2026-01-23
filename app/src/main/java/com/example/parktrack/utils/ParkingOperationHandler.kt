@@ -55,8 +55,8 @@ class ParkingOperationHandler(
         
         val result = repository.createSession(session)
         if (result.isFailure) {
-            val error = result.exceptionOrNull()
-            val errorMsg = ParkingErrorHandler.handleSessionError(error ?: Exception("Unknown"), "entry")
+            val error = result.exceptionOrNull() as? Exception ?: Exception("Unknown")
+            val errorMsg = ParkingErrorHandler.handleSessionError(error, "entry")
             throw Exception(errorMsg)
         }
         
@@ -109,8 +109,8 @@ class ParkingOperationHandler(
         // Complete session
         val result = repository.completeSession(activeSession.id, exitTime)
         if (result.isFailure) {
-            val error = result.exceptionOrNull()
-            val errorMsg = ParkingErrorHandler.handleSessionError(error ?: Exception("Unknown"), "exit")
+            val error = result.exceptionOrNull() as? Exception ?: Exception("Unknown")
+            val errorMsg = ParkingErrorHandler.handleSessionError(error, "exit")
             throw Exception(errorMsg)
         }
         

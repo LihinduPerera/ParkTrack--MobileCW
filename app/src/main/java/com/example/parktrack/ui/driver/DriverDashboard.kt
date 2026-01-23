@@ -1,3 +1,4 @@
+
 package com.example.parktrack.ui.driver
 
 import androidx.compose.animation.AnimatedVisibility
@@ -116,7 +117,10 @@ fun DriverDashboard(
             
             // Generate QR Code Button
             Button(
-                onClick = { viewModel.generateQRCode() },
+                onClick = { 
+                    val qrType = if (activeSession != null) "EXIT" else "ENTRY"
+                    viewModel.generateQRCode(qrType)
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),

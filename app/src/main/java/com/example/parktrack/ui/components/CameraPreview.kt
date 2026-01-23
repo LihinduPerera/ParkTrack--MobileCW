@@ -42,6 +42,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import androidx.camera.view.PreviewView
+import androidx.core.content.ContextCompat
 import com.example.parktrack.utils.BarcodeAnalyzer
 import java.util.concurrent.Executors
 
@@ -138,7 +139,7 @@ fun CameraPreview(
                             Log.e("CameraPreview", "Camera setup failed", e)
                         }
                     },
-                    Executors.newSingleThreadExecutor()
+                    ContextCompat.getMainExecutor(context)
                 )
             }
         )
