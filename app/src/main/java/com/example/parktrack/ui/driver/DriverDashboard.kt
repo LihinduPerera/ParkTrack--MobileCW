@@ -43,6 +43,8 @@ import com.example.parktrack.viewmodel.DriverQRViewModel
 @Composable
 fun DriverDashboard(
     onLogout: () -> Unit,
+    onViewBilling: () -> Unit,
+    onViewReports: () -> Unit,
     viewModel: DriverQRViewModel = hiltViewModel()
 ) {
     var showContent by remember { mutableStateOf(false) }
@@ -152,6 +154,44 @@ fun DriverDashboard(
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
             }
+
+            // --- NEW BILLING & REPORTS SECTION ---
+
+            // Billing Button (Gold Theme)
+            Button(
+                onClick = onViewBilling,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = androidx.compose.ui.graphics.Color(0xFFFFD700), // VaultGold
+                    contentColor = androidx.compose.ui.graphics.Color.Black
+                ),
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Text(
+                    text = "View Billing & Invoices",
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+
+            // Reports Button (Platinum/Surface Theme)
+            Button(
+                onClick = onViewReports,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                ),
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Text(
+                    text = "Parking Session Reports",
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+
+            // --- END OF NEW SECTION ---
             
             // Logout Button
             Button(

@@ -24,6 +24,8 @@ sealed class Screen(val route: String) {
     object DriverDashboard : Screen("driver_dashboard")
     object AdminDashboard : Screen("admin_dashboard")
     object QRScanner : Screen("qr_scanner")
+    object Billing : Screen("billing")
+    object Reports : Screen("reports")
 }
 
 @Composable
@@ -105,6 +107,12 @@ fun ParkTrackNavHost(
                     scope.launch {
                         authViewModel.logout()
                     }
+                },
+                onViewBilling = {
+                    navController.navigate(Screen.Billing.route)
+                },
+                onViewReports = {
+                    navController.navigate(Screen.Reports.route)
                 }
             )
         }
