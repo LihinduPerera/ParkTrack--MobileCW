@@ -26,10 +26,10 @@ fun ParkTrackNavHost(
                     navController.navigate("login") { popUpTo(0) }
                 },
                 onViewBilling = {
-                    navController.navigate("billing_screen") // Make sure this matches your route
+                    navController.navigate(Routes.BILLING)
                 },
                 onViewReports = {
-                    navController.navigate("reports_screen")
+                    navController.navigate(Routes.REPORTS)
                 }
             )
         }
