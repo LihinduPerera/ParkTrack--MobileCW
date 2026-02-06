@@ -12,6 +12,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.parktrack.ui.admin.AdminDashboard
 import com.example.parktrack.ui.admin.QRScannerScreen
+import com.example.parktrack.ui.admin.SecurityProfileScreen
 import com.example.parktrack.ui.auth.LoginScreen
 import com.example.parktrack.ui.auth.RegisterScreen
 import com.example.parktrack.ui.driver.DriverDashboard
@@ -30,6 +31,7 @@ sealed class Screen(val route: String) {
     object Billing : Screen("billing")
     object Reports : Screen("reports")
     object Profile : Screen("profile")
+    object SecurityProfile : Screen("security_profile")
 }
 
 
@@ -133,7 +135,8 @@ fun ParkTrackNavHost(
                 },
                 onScanQRCode = {
                     navController.navigate(Screen.QRScanner.route)
-                }
+                },
+                onNavigateToProfile = { navController.navigate(Screen.SecurityProfile.route) }
             )
         }
         composable(Screen.QRScanner.route) {
@@ -154,6 +157,24 @@ fun ParkTrackNavHost(
                 onBillingClick = { navController.navigate(Screen.Billing.route) },
                 onBackClick = { navController.popBackStack() },
                 onLogoutClick = { scope.launch { authViewModel.logout() } }
+            )
+        }
+
+        composable(Screen.SecurityProfile.route) {
+            SecurityProfileScreen(
+                authViewModel = authViewModel,
+                onBackClick = { navController.popBackStack() },
+                onLogoutClick = { scope.launch { authViewModel.logout() } }
+            )
+        }
+
+        composable(Screen.AdminDashboard.route) {
+            AdminDashboard(
+                onLogout = { scope.launch {
+                    authViewModel.logout()
+                } },
+                onScanQRCode = { navController.navigate(Screen.QRScanner.route) },
+                onNavigateToProfile = { navController.navigate(Screen.SecurityProfile.route) } // ADD THIS
             )
         }
 

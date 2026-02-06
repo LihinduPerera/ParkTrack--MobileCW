@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -17,6 +18,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -35,7 +37,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun AdminDashboard(
     onLogout: () -> Unit,
-    onScanQRCode: () -> Unit
+    onScanQRCode: () -> Unit,
+    onNavigateToProfile: () -> Unit
 ) {
     var showContent by remember { mutableStateOf(false) }
 
@@ -46,7 +49,12 @@ fun AdminDashboard(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Admin Dashboard") }
+                title = { Text("Admin Dashboard") },
+                        actions = {
+                    IconButton(onClick = onNavigateToProfile) {
+                        Icon(Icons.Default.AccountCircle, contentDescription = "Profile")
+                    }
+                }
             )
         }
     ) { paddingValues ->
