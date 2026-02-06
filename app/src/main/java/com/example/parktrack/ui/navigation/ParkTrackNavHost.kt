@@ -2,14 +2,14 @@ package com.example.parktrack.ui.navigation
 
 import android.annotation.SuppressLint
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.parktrack.ui.screens.BillingScreen
 import com.example.parktrack.ui.screens.BillingViewModel
 import com.example.parktrack.viewmodel.AuthViewModel
-
-
+import kotlinx.coroutines.launch
 
 
 @SuppressLint("ViewModelConstructorInComposable")
@@ -18,6 +18,7 @@ fun ParkTrackNavHost(
     navController: NavHostController,
     authViewModel: AuthViewModel
 ) {
+    val scope = rememberCoroutineScope()
     NavHost(
         navController = navController,
         startDestination = Routes.PROFILE
@@ -42,7 +43,9 @@ fun ParkTrackNavHost(
                 authViewModel = authViewModel,
                 onBillingClick = {
                     navController.navigate(Routes.BILLING)
-                }
+                },
+                onBackClick = { navController.popBackStack() },
+                onLogoutClick = { scope.launch { authViewModel.logout() } }
             )
         }
 
@@ -75,7 +78,12 @@ fun ReportsScreen() {
 }
 
 @Composable
-fun ProfileScreen(authViewModel: AuthViewModel, onBillingClick: () -> Unit) {
+fun ProfileScreen(
+    authViewModel: AuthViewModel,
+    onBillingClick: () -> Unit,
+    onBackClick: () -> Boolean,
+    onLogoutClick: () -> Unit
+) {
 
 }
 

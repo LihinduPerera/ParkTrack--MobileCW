@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material3.*
@@ -30,6 +31,7 @@ fun DriverDashboard(
     onLogout: () -> Unit,
     onViewBilling: () -> Unit,
     onViewReports: () -> Unit,
+    onNavigateToProfile: () -> Unit,
     viewModel: DriverQRViewModel = hiltViewModel(),
     dashboardViewModel: DriverDashboardViewModel = hiltViewModel()
 
@@ -57,7 +59,15 @@ fun DriverDashboard(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (selectedTab == 0) "Driver Dashboard" else "Parking History") }
+                title = { Text(if (selectedTab == 0) "Driver Dashboard" else "Parking History") },
+                        actions = { //  'actions' BLOCK
+                    IconButton(onClick = onNavigateToProfile) {
+                        Icon(
+                            imageVector = Icons.Default.AccountCircle,
+                            contentDescription = "Profile"
+                        )
+                    }
+                }
             )
         },
         bottomBar = {

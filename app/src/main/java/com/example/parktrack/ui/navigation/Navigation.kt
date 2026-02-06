@@ -1,5 +1,6 @@
 package com.example.parktrack.ui.navigation
 
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -28,7 +29,9 @@ sealed class Screen(val route: String) {
     object QRScanner : Screen("qr_scanner")
     object Billing : Screen("billing")
     object Reports : Screen("reports")
+    object Profile : Screen("profile")
 }
+
 
 @Composable
 fun ParkTrackNavHost(
@@ -115,6 +118,9 @@ fun ParkTrackNavHost(
                 },
                 onViewReports = {
                     navController.navigate(Screen.Reports.route)
+                },
+                onNavigateToProfile = {
+                    navController.navigate(Screen.Profile.route)
                 }
             )
         }
@@ -140,6 +146,25 @@ fun ParkTrackNavHost(
         composable(Screen.Billing.route) {
             val billingViewModel: BillingViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
             BillingScreen(viewModel = billingViewModel)
+        }
+
+        composable(Screen.Profile.route) {
+            com.example.parktrack.ui.driver.ProfileScreen(
+                authViewModel = authViewModel,
+                onBillingClick = { navController.navigate(Screen.Billing.route) },
+                onBackClick = { navController.popBackStack() },
+                onLogoutClick = { scope.launch { authViewModel.logout() } }
+            )
+        }
+
+        // 3.  Placeholder for Reports
+        composable(Screen.Reports.route) {
+            androidx.compose.foundation.layout.Box(
+                modifier = androidx.compose.ui.Modifier.fillMaxSize(),
+                contentAlignment = androidx.compose.ui.Alignment.Center
+            ) {
+                androidx.compose.material3.Text("Reports Screen Coming Soon")
+            }
         }
     }
 }

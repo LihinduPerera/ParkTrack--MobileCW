@@ -15,10 +15,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.example.parktrack.viewmodel.AuthViewModel
 
 
 @Composable
 fun ProfileScreen(
+    authViewModel: AuthViewModel,
     onBillingClick: () -> Unit,
     onLogoutClick: () -> Unit,
     onReportsClick: () -> Unit

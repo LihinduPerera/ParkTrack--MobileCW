@@ -1,5 +1,6 @@
 package com.example.parktrack.ui.screens
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -88,6 +89,7 @@ fun PricingInfoCard() {
     Text("Pricing Info (Gold / Platinum)")
 }
 
+@SuppressLint("ViewModelConstructorInComposable")
 @androidx.compose.ui.tooling.preview.Preview(showBackground = true)
 @Composable
 fun PreviewBillingScreen() {
