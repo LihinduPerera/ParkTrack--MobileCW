@@ -1,5 +1,6 @@
 package com.example.parktrack.ui.navigation
 
+import android.annotation.SuppressLint
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -11,6 +12,7 @@ import com.example.parktrack.viewmodel.AuthViewModel
 
 
 
+@SuppressLint("ViewModelConstructorInComposable")
 @Composable
 fun ParkTrackNavHost(
     navController: NavHostController,

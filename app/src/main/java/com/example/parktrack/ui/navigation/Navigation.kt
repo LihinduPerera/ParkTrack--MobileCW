@@ -138,8 +138,6 @@ fun ParkTrackNavHost(
             )
         }
         composable(Screen.Billing.route) {
-            // You need to provide the ViewModel here.
-            // Using 'viewModel()' requires 'androidx.lifecycle:lifecycle-viewmodel-compose'
             val billingViewModel: BillingViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
             BillingScreen(viewModel = billingViewModel)
         }
