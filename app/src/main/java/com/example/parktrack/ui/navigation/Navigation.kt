@@ -14,6 +14,8 @@ import com.example.parktrack.ui.admin.QRScannerScreen
 import com.example.parktrack.ui.auth.LoginScreen
 import com.example.parktrack.ui.auth.RegisterScreen
 import com.example.parktrack.ui.driver.DriverDashboard
+import com.example.parktrack.ui.screens.BillingScreen
+import com.example.parktrack.ui.screens.BillingViewModel
 import com.example.parktrack.viewmodel.AuthState
 import com.example.parktrack.viewmodel.AuthViewModel
 import kotlinx.coroutines.launch
@@ -134,6 +136,12 @@ fun ParkTrackNavHost(
                     navController.popBackStack()
                 }
             )
+        }
+        composable(Screen.Billing.route) {
+            // You need to provide the ViewModel here.
+            // Using 'viewModel()' requires 'androidx.lifecycle:lifecycle-viewmodel-compose'
+            val billingViewModel: BillingViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+            BillingScreen(viewModel = billingViewModel)
         }
     }
 }

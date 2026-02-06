@@ -30,4 +30,13 @@ class BillingViewModel : ViewModel() {
         val cap = if (isPlatinum) 30.0 else 40.0
         return minOf(hours * rate, cap)
     }
+
+    // Logic for Gold ($5/hr, $40 cap) and Platinum ($4/hr, $30 cap, $200 unlimited)
+    fun calculateInvoice(hours: Double, tier: String): Double {
+        return if (tier == "Platinum") {
+            minOf(hours * 4.0, 30.0)
+        } else {
+            minOf(hours * 5.0, 40.0)
+        }
+    }
 }
