@@ -21,7 +21,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.parktrack.ui.components.EnhancedParkingStatusCard
 import com.example.parktrack.ui.components.ParkingHistoryCard
 import com.example.parktrack.ui.components.QRCodeDialog
-import com.example.parktrack.utils.ParkingHelper
+import com.example.parktrack.ui.dashboard.DriverStatsSection
 import com.example.parktrack.viewmodel.DriverDashboardViewModel
 import com.example.parktrack.viewmodel.DriverQRViewModel
 
@@ -128,10 +128,15 @@ fun DriverDashboard(
                     }
                 }
 
-                // Enhanced Parking Status Card
+                // Parking Status Card
                 EnhancedParkingStatusCard(
                     session = activeSession,
                     duration = parkingDuration,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                DriverStatsSection(
+                    viewModel = dashboardViewModel,
                     modifier = Modifier.fillMaxWidth()
                 )
 
