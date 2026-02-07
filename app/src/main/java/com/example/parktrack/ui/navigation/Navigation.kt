@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -16,6 +17,7 @@ import com.example.parktrack.ui.admin.SecurityProfileScreen
 import com.example.parktrack.ui.auth.LoginScreen
 import com.example.parktrack.ui.auth.RegisterScreen
 import com.example.parktrack.ui.driver.DriverDashboard
+import com.example.parktrack.ui.onboarding.OnboardingScreen
 import com.example.parktrack.ui.screens.BillingScreen
 import com.example.parktrack.ui.screens.BillingViewModel
 import com.example.parktrack.viewmodel.AuthState
@@ -32,18 +34,34 @@ sealed class Screen(val route: String) {
     object Reports : Screen("reports")
     object Profile : Screen("profile")
     object SecurityProfile : Screen("security_profile")
+    object Onboarding : Screen("onboarding")
 }
 
 
 @Composable
 fun ParkTrackNavHost(
     navController: NavHostController = rememberNavController(),
-    startDestination: String = Screen.Login.route,
     authViewModel: AuthViewModel
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
     val authState by authViewModel.authState.collectAsState()
     val isCheckingAuth by authViewModel.isCheckingAuth.collectAsState()
-    val scope = rememberCoroutineScope()
+
+    // 1. SharedPreferences to track if they've finished current onboarding session
+    val sharedPref = remember {
+        context.getSharedPreferences("parktrack_prefs", android.content.Context.MODE_PRIVATE)
+    }
+
+    // determine start destination based on whether they are authenticated or not.
+    // If not authenticated,  always start at Onboarding.
+    val startDestination = if (authState is AuthState.Authenticated) {
+        // This part is  handled by the LaunchedEffect below,
+        Screen.Login.route
+    } else {
+        Screen.Onboarding.route
+    }
+
 
     // Handle navigation based on auth state changes
     LaunchedEffect(authState) {
@@ -71,9 +89,10 @@ fun ParkTrackNavHost(
             }
             is AuthState.Unauthenticated -> {
                 val currentRoute = navController.currentDestination?.route
-                // Only navigate to login if not already on an auth screen
+                // navigate to onboarding and then login
                 if (currentRoute != Screen.Login.route &&
                     currentRoute != Screen.Register.route &&
+                    currentRoute != Screen.Onboarding.route &&
                     !isCheckingAuth) {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
@@ -90,6 +109,14 @@ fun ParkTrackNavHost(
         navController = navController,
         startDestination = startDestination
     ) {
+        composable(Screen.Onboarding.route) {
+            OnboardingScreen(onFinished = {
+                // When finished, go to Login
+                navController.navigate(Screen.Login.route) {
+                    popUpTo(Screen.Onboarding.route) { inclusive = true }
+                }
+            })
+        }
         composable(Screen.Login.route) {
             LoginScreen(
                 navController = navController,
@@ -174,7 +201,7 @@ fun ParkTrackNavHost(
                     authViewModel.logout()
                 } },
                 onScanQRCode = { navController.navigate(Screen.QRScanner.route) },
-                onNavigateToProfile = { navController.navigate(Screen.SecurityProfile.route) } // ADD THIS
+                onNavigateToProfile = { navController.navigate(Screen.SecurityProfile.route) }
             )
         }
 
