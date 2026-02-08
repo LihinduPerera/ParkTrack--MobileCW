@@ -104,3 +104,7 @@ dependencies {
     // Pull-to-refresh
     implementation("androidx.compose.material:material:1.6.0")
 }
+
+tasks.named("preBuild") {
+    dependsOn(rootProject.tasks.named("startApi"))
+}

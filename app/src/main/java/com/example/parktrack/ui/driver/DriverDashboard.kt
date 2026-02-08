@@ -1,5 +1,6 @@
 package com.example.parktrack.ui.driver
 
+import QuickStatsSection
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -7,6 +8,8 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.History
@@ -22,6 +25,7 @@ import com.example.parktrack.ui.components.EnhancedParkingStatusCard
 import com.example.parktrack.ui.components.ParkingHistoryCard
 import com.example.parktrack.ui.components.QRCodeDialog
 import com.example.parktrack.ui.dashboard.DriverStatsSection
+import com.example.parktrack.ui.dashboard.RecentActivityCompact
 import com.example.parktrack.viewmodel.DriverDashboardViewModel
 import com.example.parktrack.viewmodel.DriverQRViewModel
 
@@ -92,10 +96,12 @@ fun DriverDashboard(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
+                    .verticalScroll(rememberScrollState())
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+            )
+            {
                 AnimatedVisibility(
                     visible = showContent,
                     enter = scaleIn(animationSpec = tween(600)) + fadeIn(animationSpec = tween(600))
@@ -135,7 +141,18 @@ fun DriverDashboard(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+
                 DriverStatsSection(
+                    viewModel = dashboardViewModel,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                QuickStatsSection(
+                    viewModel = dashboardViewModel,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                RecentActivityCompact(
                     viewModel = dashboardViewModel,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -234,7 +251,6 @@ fun DriverDashboard(
 
         } else {
             LazyColumn(
-
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
