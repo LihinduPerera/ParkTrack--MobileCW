@@ -9,7 +9,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.util.Calendar
+import java.text.SimpleDateFormat
+import java.util.*
 import javax.inject.Inject
 
 @HiltViewModel
@@ -19,13 +20,9 @@ class DriverDashboardViewModel @Inject constructor() : ViewModel() {
     private val auth = Firebase.auth
 
     private var historyListener: ListenerRegistration? = null
-    private var statsListener: ListenerRegistration? = null
 
     private val _previousSessions = MutableStateFlow<List<ParkingSession>>(emptyList())
     val previousSessions: StateFlow<List<ParkingSession>> = _previousSessions.asStateFlow()
-
-    private val _isHistoryLoading = MutableStateFlow(false)
-    val isHistoryLoading: StateFlow<Boolean> = _isHistoryLoading.asStateFlow()
 
     private val _todaySessionsCount = MutableStateFlow(0)
     val todaySessionsCount: StateFlow<Int> = _todaySessionsCount.asStateFlow()
@@ -33,62 +30,99 @@ class DriverDashboardViewModel @Inject constructor() : ViewModel() {
     private val _todayTotalMinutes = MutableStateFlow(0L)
     val todayTotalMinutes: StateFlow<Long> = _todayTotalMinutes.asStateFlow()
 
+    private val _monthlySessions = MutableStateFlow(0)
+    val monthlySessions: StateFlow<Int> = _monthlySessions.asStateFlow()
+
+    private val _monthlyMinutes = MutableStateFlow(0L)
+    val monthlyMinutes: StateFlow<Long> = _monthlyMinutes.asStateFlow()
+
+    private val _memberSince = MutableStateFlow("")
+    val memberSince: StateFlow<String> = _memberSince.asStateFlow()
+
+    private val _recentThreeSessions = MutableStateFlow<List<ParkingSession>>(emptyList())
+    val recentThreeSessions: StateFlow<List<ParkingSession>> = _recentThreeSessions.asStateFlow()
+
     init {
-        listenToPreviousSessions()
-        listenToTodayStats()
+        loadAllSessions()
+        loadMemberSince()
     }
 
-    private fun listenToPreviousSessions() {
+    private fun loadMemberSince() {
         val userId = auth.currentUser?.uid ?: return
-        _isHistoryLoading.value = true
+        firestore.collection("users").document(userId).get()
+            .addOnSuccessListener { doc ->
+                val raw = doc.get("createdAt")
+                val date = when (raw) {
+                    is com.google.firebase.Timestamp -> raw.toDate()
+                    is Long -> Date(raw)
+                    else -> null
+                }
+                date?.let {
+                    _memberSince.value =
+                        SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(it)
+                }
+            }
+    }
+
+    private fun loadAllSessions() {
+        val userId = auth.currentUser?.uid ?: return
 
         historyListener = firestore.collection("parkingSessions")
             .whereEqualTo("driverId", userId)
             .whereEqualTo("status", "COMPLETED")
-            .limit(5)
-            .addSnapshotListener { snapshot, _ ->
-
-                val sessions = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toObject(ParkingSession::class.java)?.copy(id = doc.id)
-                } ?: emptyList()
-
-                _previousSessions.value = sessions.sortedByDescending { it.entryTime }
-                _isHistoryLoading.value = false
-            }
-    }
-
-    private fun listenToTodayStats() {
-        val userId = auth.currentUser?.uid ?: return
-
-        val calendar = Calendar.getInstance()
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-
-        val startOfDayTimestamp = com.google.firebase.Timestamp(calendar.time)
-
-        statsListener = firestore.collection("parkingSessions")
-            .whereEqualTo("driverId", userId)
-            .whereGreaterThanOrEqualTo("entryTime", startOfDayTimestamp)
             .addSnapshotListener { snapshot, _ ->
 
                 val sessions = snapshot?.documents?.mapNotNull {
-                    it.toObject(ParkingSession::class.java)
+                    it.toObject(ParkingSession::class.java)?.copy(id = it.id)
                 } ?: emptyList()
 
-                // Count sessions today
-                _todaySessionsCount.value = sessions.size
+                _previousSessions.value = sessions.sortedByDescending { it.entryTime }
+                _recentThreeSessions.value = _previousSessions.value.take(3)
 
-                // Sum durations safely
-                _todayTotalMinutes.value =
-                    sessions.sumOf { it.durationMinutes ?: 0L }
+                calculateStatsFromSessions(sessions)
             }
+    }
+
+    private fun calculateStatsFromSessions(sessions: List<ParkingSession>) {
+
+        val now = Calendar.getInstance()
+
+        var todayCount = 0
+        var todayMinutes = 0L
+        var monthCount = 0
+        var monthMinutes = 0L
+
+        sessions.forEach { session ->
+            val entry = session.entryTime?.toDate() ?: return@forEach
+            val cal = Calendar.getInstance().apply { time = entry }
+
+            val isToday =
+                cal.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+                        cal.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR)
+
+            val isThisMonth =
+                cal.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+                        cal.get(Calendar.MONTH) == now.get(Calendar.MONTH)
+
+            if (isToday) {
+                todayCount++
+                todayMinutes += session.durationMinutes
+            }
+
+            if (isThisMonth) {
+                monthCount++
+                monthMinutes += session.durationMinutes
+            }
+        }
+
+        _todaySessionsCount.value = todayCount
+        _todayTotalMinutes.value = todayMinutes
+        _monthlySessions.value = monthCount
+        _monthlyMinutes.value = monthMinutes
     }
 
     override fun onCleared() {
         super.onCleared()
         historyListener?.remove()
-        statsListener?.remove()
     }
 }
