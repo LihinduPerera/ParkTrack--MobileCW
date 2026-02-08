@@ -1,5 +1,6 @@
 package com.example.parktrack.ui.driver
 
+import androidx.activity.result.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.getValue
@@ -18,10 +19,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.parktrack.R
 import com.example.parktrack.viewmodel.AuthViewModel
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.widget.Toast
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,6 +42,21 @@ fun ProfileScreen(
     var notificationsEnabled by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
     var showDeleteDialog by remember { mutableStateOf(false) }
+
+    val user by authViewModel.currentUser.collectAsState()
+    val context = LocalContext.current
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            authViewModel.updateProfileImage(it) {
+                Toast.makeText(context, "Profile updated!", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+
 
     Scaffold(
         topBar = {
@@ -68,8 +89,10 @@ fun ProfileScreen(
                     contentScale = ContentScale.Crop
                 )
                 IconButton(
-                    onClick = { /* TODO: Image Picker Logic */ },
-                    modifier = Modifier.size(32.dp).background(MaterialTheme.colorScheme.primary, CircleShape)
+                    onClick = { launcher.launch("image/*") },
+                    modifier = Modifier
+                        .size(32.dp)
+                        .background(MaterialTheme.colorScheme.primary, CircleShape)
                 ) {
                     Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color.White, modifier = Modifier.size(16.dp))
                 }

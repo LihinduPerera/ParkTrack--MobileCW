@@ -144,6 +144,13 @@ class AuthViewModel @Inject constructor(
             }
     }
 
+    fun updateProfileImage(uri: android.net.Uri, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+
+            onSuccess()
+        }
+    }
+
     fun deleteAccount(
         onSuccess: () -> Unit,
         onError: (String) -> Unit
