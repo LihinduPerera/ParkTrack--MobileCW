@@ -81,7 +81,24 @@ class AuthRepository @Inject constructor(
             Result.failure(e)
         }
     }
-    
+
+    suspend fun deleteAccount(firebaseAuth: Any) {
+        val user = auth.currentUser
+        user?.delete()?.await()
+            ?: throw Exception("User not logged in")
+
+        val userId = user.uid
+
+        // Delete Firestore user document
+        db.collection("users")
+            .document(userId)
+            .delete()
+            .await()
+
+        // Delete Firebase Auth account
+        user.delete().await()
+    }
+
     fun logout() {
         auth.signOut()
     }

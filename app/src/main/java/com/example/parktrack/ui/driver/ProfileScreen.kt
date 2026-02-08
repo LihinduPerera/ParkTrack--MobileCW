@@ -29,9 +29,13 @@ fun ProfileScreen(
     authViewModel: AuthViewModel,
     onBillingClick: () -> Unit,
     onBackClick: () -> Unit,
-    onLogoutClick: () -> Unit
+    onLogoutClick: () -> Unit,
+    onChangePasswordClick: () -> Unit,
+    onPersonalInfoClick: () -> Unit
 ) {
     var notificationsEnabled by remember { mutableStateOf(true) }
+    val scope = rememberCoroutineScope()
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -87,9 +91,14 @@ fun ProfileScreen(
                 Column {
                     ListItem(
                         headlineContent = { Text("Personal Information") },
-                        supportingContent = { Text("John Doe - john@example.com") },
+                        supportingContent = {
+
+                            val user by authViewModel.currentUser.collectAsState()
+                            Text("${user?.name ?: "John Doe"} - ${user?.email ?: ""}")
+                        },
                         leadingContent = { Icon(Icons.Default.Person, null) },
-                        trailingContent = { Icon(Icons.Default.ChevronRight, null) }
+                        trailingContent = { Icon(Icons.Default.ChevronRight, null) },
+                        modifier = Modifier.clickable { onPersonalInfoClick() }
                     )
                     HorizontalDivider()
                     ListItem(
@@ -104,7 +113,7 @@ fun ProfileScreen(
                         headlineContent = { Text("Change Password") },
                         leadingContent = { Icon(Icons.Default.Lock, null) },
                         trailingContent = { Icon(Icons.Default.ChevronRight, null) },
-                        modifier = Modifier.clickable { /* TODO */ }
+                        modifier = Modifier.clickable { onChangePasswordClick() }
                     )
                 }
             }
@@ -112,8 +121,39 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             // 4. Account Management & Logout
-            TextButton(onClick = { /* TODO: Delete Account */ }) {
+            TextButton(onClick = { showDeleteDialog = true }) {
                 Text("Delete Account", color = MaterialTheme.colorScheme.error)
+            }
+            // Confirmation Dialog
+            if (showDeleteDialog) {
+                AlertDialog(
+                    onDismissRequest = { showDeleteDialog = false },
+                    title = { Text("Delete Account?") },
+                    text = { Text("This action is permanent and will delete all your parking history.") },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                authViewModel.deleteAccount(
+                                    onSuccess = {
+                                        // The Navigation LaunchedEffect will handle the redirect
+                                        showDeleteDialog = false
+                                    },
+                                    onError = { errorMessage ->
+                                        // Optional: You can add a Toast here to show the error
+                                        showDeleteDialog = false
+                                    }
+                                )
+                            }
+                        ) {
+                            Text("Delete", color = MaterialTheme.colorScheme.error)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDeleteDialog = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
             }
 
             Button(

@@ -24,6 +24,7 @@ import com.example.parktrack.viewmodel.AuthState
 import com.example.parktrack.viewmodel.AuthViewModel
 import kotlinx.coroutines.launch
 
+
 sealed class Screen(val route: String) {
     object Login : Screen("login")
     object Register : Screen("register")
@@ -35,6 +36,8 @@ sealed class Screen(val route: String) {
     object Profile : Screen("profile")
     object SecurityProfile : Screen("security_profile")
     object Onboarding : Screen("onboarding")
+    object ChangePassword : Screen("change_password")
+    object PersonalInfo : Screen("personal_info")
 }
 
 
@@ -94,7 +97,7 @@ fun ParkTrackNavHost(
                     currentRoute != Screen.Register.route &&
                     currentRoute != Screen.Onboarding.route &&
                     !isCheckingAuth) {
-                    navController.navigate(Screen.Login.route) {
+                    navController.navigate(Screen.Onboarding.route) {
                         popUpTo(0) { inclusive = true }
                     }
                 }
@@ -183,7 +186,18 @@ fun ParkTrackNavHost(
                 authViewModel = authViewModel,
                 onBillingClick = { navController.navigate(Screen.Billing.route) },
                 onBackClick = { navController.popBackStack() },
-                onLogoutClick = { scope.launch { authViewModel.logout() } }
+                onLogoutClick = { scope.launch { authViewModel.logout() } },
+                onChangePasswordClick = { navController.navigate(Screen.ChangePassword.route) },
+                onPersonalInfoClick = { navController.navigate(Screen.PersonalInfo.route) }
+
+            )
+        }
+
+        composable(Screen.ChangePassword.route) {
+            // Replace with your actual ChangePasswordScreen composable
+            com.example.parktrack.ui.driver.ChangePasswordScreen(
+                authViewModel = authViewModel,
+                onBackClick = { navController.popBackStack() }
             )
         }
 
@@ -195,15 +209,13 @@ fun ParkTrackNavHost(
             )
         }
 
-        composable(Screen.AdminDashboard.route) {
-            AdminDashboard(
-                onLogout = { scope.launch {
-                    authViewModel.logout()
-                } },
-                onScanQRCode = { navController.navigate(Screen.QRScanner.route) },
-                onNavigateToProfile = { navController.navigate(Screen.SecurityProfile.route) }
+        composable(Screen.PersonalInfo.route) {
+            com.example.parktrack.ui.driver.PersonalInfoScreen(
+                authViewModel = authViewModel,
+                onBackClick = { navController.popBackStack() }
             )
         }
+
 
         // 3.  Placeholder for Reports
         composable(Screen.Reports.route) {

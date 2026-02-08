@@ -2,6 +2,7 @@ package com.example.parktrack.data.model
 
 data class User(
     val id: String = "",
+    val name: String = "",
     val email: String = "",
     val fullName: String = "",
     val role: UserRole = UserRole.DRIVER,

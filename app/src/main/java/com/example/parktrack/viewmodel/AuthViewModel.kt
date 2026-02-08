@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.parktrack.data.model.User
 import com.example.parktrack.data.model.UserRole
 import com.example.parktrack.data.repository.AuthRepository
+import com.google.firebase.Firebase
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.auth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,7 +17,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val firebaseAuth: FirebaseAuth
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
@@ -127,6 +131,38 @@ class AuthViewModel @Inject constructor(
             }
         }
     }
+
+    fun changePassword(newPassword: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+        user?.updatePassword(newPassword)
+            ?.addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    onSuccess()
+                } else {
+                    onError(task.exception?.message ?: "Failed to update password")
+                }
+            }
+    }
+
+    fun deleteAccount(
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                authRepository.deleteAccount(
+                    firebaseAuth = TODO()
+                )
+                _currentUser.value = null
+                _authState.value = AuthState.Unauthenticated
+                onSuccess()
+            } catch (e: Exception) {
+                onError(e.message ?: "Failed to delete account")
+            }
+        }
+    }
+
+
 }
 
 sealed class AuthState {
