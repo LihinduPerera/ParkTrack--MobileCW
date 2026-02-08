@@ -40,6 +40,7 @@ sealed class Screen(val route: String) {
     object PersonalInfo : Screen("personal_info")
     object AccountSettings : Screen("account_settings")
     object UpdateEmail : Screen("update_email")
+    object Preferences : Screen("preferences")
 }
 
 
@@ -190,7 +191,8 @@ fun ParkTrackNavHost(
                 onBackClick = { navController.popBackStack() },
                 onLogoutClick = { scope.launch { authViewModel.logout() } },
                 onChangePasswordClick = { navController.navigate(Screen.ChangePassword.route) },
-                onPersonalInfoClick = { navController.navigate(Screen.PersonalInfo.route) }
+                onPersonalInfoClick = { navController.navigate(Screen.PersonalInfo.route) },
+                onPreferencesClick = { navController.navigate(Screen.Preferences.route) }
 
             )
         }
@@ -208,7 +210,8 @@ fun ParkTrackNavHost(
                 authViewModel = authViewModel,
                 onBackClick = { navController.popBackStack() },
                 onLogoutClick = { scope.launch { authViewModel.logout() } },
-                onAccountSettingsClick = { navController.navigate(Screen.AccountSettings.route) }
+                onAccountSettingsClick = { navController.navigate(Screen.AccountSettings.route) },
+                onPreferencesClick = { navController.navigate(Screen.Preferences.route) }
             )
         }
 
@@ -230,6 +233,12 @@ fun ParkTrackNavHost(
         composable(Screen.UpdateEmail.route) {
             com.example.parktrack.ui.admin.UpdateEmailScreen(
                 authViewModel = authViewModel,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.Preferences.route) {
+            com.example.parktrack.ui.admin.PreferencesScreen(
                 onBackClick = { navController.popBackStack() }
             )
         }

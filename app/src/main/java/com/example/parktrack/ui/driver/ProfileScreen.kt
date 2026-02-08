@@ -37,7 +37,8 @@ fun ProfileScreen(
     onBackClick: () -> Unit,
     onLogoutClick: () -> Unit,
     onChangePasswordClick: () -> Unit,
-    onPersonalInfoClick: () -> Unit
+    onPersonalInfoClick: () -> Unit,
+    onPreferencesClick: () -> Unit
 ) {
     var notificationsEnabled by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
@@ -125,6 +126,14 @@ fun ProfileScreen(
                     )
                     HorizontalDivider()
                     ListItem(
+                        headlineContent = { Text("Preferences") },
+                        supportingContent = { Text("Dark mode, vibration feedback") },
+                        leadingContent = { Icon(Icons.Default.Settings, null) },
+                        modifier = Modifier.clickable { onPreferencesClick() }
+                    )
+
+                    HorizontalDivider()
+                    ListItem(
                         headlineContent = { Text("Notification Preferences") },
                         leadingContent = { Icon(Icons.Default.Notifications, null) },
                         trailingContent = {
@@ -162,7 +171,6 @@ fun ProfileScreen(
                                         showDeleteDialog = false
                                     },
                                     onError = { errorMessage ->
-                                        // Optional: You can add a Toast here to show the error
                                         showDeleteDialog = false
                                     }
                                 )

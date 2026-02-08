@@ -34,7 +34,8 @@ fun SecurityProfileScreen(
     authViewModel: AuthViewModel,
     onBackClick: () -> Unit,
     onLogoutClick: () -> Unit,
-    onAccountSettingsClick: () -> Unit
+    onAccountSettingsClick: () -> Unit,
+    onPreferencesClick: () -> Unit
 ) {
 
     val user by authViewModel.currentUser.collectAsState()
@@ -120,7 +121,7 @@ fun SecurityProfileScreen(
                         headlineContent = { Text("Preferences") },
                         supportingContent = { Text("Dark mode, vibration feedback") },
                         leadingContent = { Icon(Icons.Default.Settings, null) },
-                        modifier = Modifier.clickable { /* TODO */ }
+                        modifier = Modifier.clickable { onPreferencesClick() }
                     )
                     HorizontalDivider()
                     ListItem(
