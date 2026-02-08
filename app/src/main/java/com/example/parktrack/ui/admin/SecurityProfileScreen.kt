@@ -1,5 +1,7 @@
 package com.example.parktrack.ui.admin
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -17,16 +19,38 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.parktrack.viewmodel.AuthViewModel
+import coil.compose.AsyncImage
+import android.net.Uri
+import android.widget.Toast
+import androidx.compose.foundation.border
+import androidx.compose.ui.layout.ContentScale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SecurityProfileScreen(
     authViewModel: AuthViewModel,
     onBackClick: () -> Unit,
-    onLogoutClick: () -> Unit
+    onLogoutClick: () -> Unit,
+    onAccountSettingsClick: () -> Unit
 ) {
+
+    val user by authViewModel.currentUser.collectAsState()
+    val context = LocalContext.current
+
+    // 1. Image Picker Launcher
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            authViewModel.updateProfileImage(it) {
+                Toast.makeText(context, "Admin Profile Updated!", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -43,19 +67,34 @@ fun SecurityProfileScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 1. Guard Information Header
-            Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.Shield, contentDescription = null,modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
+            // 2. Profile Image Section
+            Box(contentAlignment = Alignment.BottomEnd) {
+                AsyncImage(
+                    model = user?.profileImageUrl ?: android.R.drawable.ic_menu_gallery,
+                    contentDescription = "Admin Photo",
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+
+                IconButton(
+                    onClick = { launcher.launch("image/*") },
+                    modifier = Modifier
+                        .size(32.dp)
+                        .background(MaterialTheme.colorScheme.primary, CircleShape)
+                ) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "Edit",
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(16.dp))
             Text("Officer John Smith", style = MaterialTheme.typography.headlineSmall)
@@ -88,7 +127,7 @@ fun SecurityProfileScreen(
                         headlineContent = { Text("Account Settings") },
                         supportingContent = { Text("Change password, email") },
                         leadingContent = { Icon(Icons.Default.ManageAccounts, null) },
-                        modifier = Modifier.clickable { /* TODO */ }
+                        modifier = Modifier.clickable { onAccountSettingsClick() }
                     )
                 }
             }

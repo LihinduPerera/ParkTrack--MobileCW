@@ -151,6 +151,19 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    fun updateEmail(newEmail: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+        user?.updateEmail(newEmail)
+            ?.addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    // Also update the email in your Firestore 'users' collection here if necessary
+                    onSuccess()
+                } else {
+                    onError(task.exception?.message ?: "Failed to update email")
+                }
+            }
+    }
+
     fun deleteAccount(
         onSuccess: () -> Unit,
         onError: (String) -> Unit

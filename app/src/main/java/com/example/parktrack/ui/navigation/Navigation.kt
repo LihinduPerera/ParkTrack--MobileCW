@@ -38,6 +38,8 @@ sealed class Screen(val route: String) {
     object Onboarding : Screen("onboarding")
     object ChangePassword : Screen("change_password")
     object PersonalInfo : Screen("personal_info")
+    object AccountSettings : Screen("account_settings")
+    object UpdateEmail : Screen("update_email")
 }
 
 
@@ -205,12 +207,28 @@ fun ParkTrackNavHost(
             SecurityProfileScreen(
                 authViewModel = authViewModel,
                 onBackClick = { navController.popBackStack() },
-                onLogoutClick = { scope.launch { authViewModel.logout() } }
+                onLogoutClick = { scope.launch { authViewModel.logout() } },
+                onAccountSettingsClick = { navController.navigate(Screen.AccountSettings.route) }
             )
         }
 
         composable(Screen.PersonalInfo.route) {
             com.example.parktrack.ui.driver.PersonalInfoScreen(
+                authViewModel = authViewModel,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.AccountSettings.route) {
+            com.example.parktrack.ui.admin.AccountSettingsScreen(
+                onBackClick = { navController.popBackStack() },
+                onChangePasswordClick = { navController.navigate(Screen.ChangePassword.route) },
+                onUpdateEmailClick = { navController.navigate(Screen.UpdateEmail.route) }
+            )
+        }
+
+        composable(Screen.UpdateEmail.route) {
+            com.example.parktrack.ui.admin.UpdateEmailScreen(
                 authViewModel = authViewModel,
                 onBackClick = { navController.popBackStack() }
             )
