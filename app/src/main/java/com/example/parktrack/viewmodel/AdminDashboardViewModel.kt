@@ -5,6 +5,7 @@ import com.example.parktrack.data.model.ParkingSession
 import com.example.parktrack.data.model.EnrichedParkingSession
 import com.example.parktrack.data.model.User
 import com.example.parktrack.data.model.Vehicle
+import com.example.parktrack.utils.FirebaseInitializationHelper
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.firestore
@@ -43,6 +44,9 @@ class AdminDashboardViewModel @Inject constructor() : ViewModel() {
 
     private val _last6hChart = MutableStateFlow(List(6) { 0 })
     val last6hChart: StateFlow<List<Int>> = _last6hChart.asStateFlow()
+
+    private val _isInitializingData = MutableStateFlow(false)
+    val isInitializingData: StateFlow<Boolean> = _isInitializingData.asStateFlow()
 
     init { listenRealtime() }
 
@@ -166,6 +170,22 @@ class AdminDashboardViewModel @Inject constructor() : ViewModel() {
             durationMinutes = session.durationMinutes,
             createdAt = session.createdAt
         )
+    }
+
+    /**
+     * Initialize sample data for development
+     */
+    fun initializeSampleData() {
+        viewModelScope.launch {
+            _isInitializingData.value = true
+            try {
+                FirebaseInitializationHelper.initializeSampleData(firestore)
+                _isInitializingData.value = false
+            } catch (e: Exception) {
+                _isInitializingData.value = false
+                // You might want to handle this error appropriately
+            }
+        }
     }
 
     override fun onCleared() {

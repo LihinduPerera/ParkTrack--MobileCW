@@ -43,6 +43,8 @@ sealed class Screen(val route: String) {
     object Preferences : Screen("preferences")
     object VehicleManagement : Screen("vehicle_management")
     object ParkingLotMap : Screen("parking_lot_map")
+    object AddParkingLot : Screen("add_parking_lot")
+    object ParkingLotManagement : Screen("parking_lot_management")
 }
 
 
@@ -178,7 +180,8 @@ fun ParkTrackNavHost(
                     navController.navigate(Screen.QRScanner.route)
                 },
                 onNavigateToProfile = { navController.navigate(Screen.SecurityProfile.route) },
-                onNavigateToReports = { navController.navigate(Screen.Reports.route) }
+                onNavigateToReports = { navController.navigate(Screen.Reports.route) },
+                onAddParkingLot = { navController.navigate(Screen.ParkingLotManagement.route) }
             )
         }
         composable(Screen.QRScanner.route) {
@@ -270,6 +273,16 @@ fun ParkTrackNavHost(
         composable(Screen.Reports.route) {
             ReportsScreen(
                 onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.ParkingLotManagement.route) {
+            com.example.parktrack.ui.screens.ParkingLotManagementScreen(
+                onBackClick = { navController.popBackStack() },
+                onParkingLotOperationComplete = { 
+                    // Navigate back to admin dashboard after successful operation
+                    navController.popBackStack()
+                }
             )
         }
     }

@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,6 +30,7 @@ fun AdminDashboard(
     onScanQRCode: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToReports: () -> Unit,
+    onAddParkingLot: () -> Unit,
     viewModel: AdminDashboardViewModel = hiltViewModel()
 ) {
 
@@ -39,6 +41,7 @@ fun AdminDashboard(
     val recent by viewModel.recentScans.collectAsStateWithLifecycle()
     val chart by viewModel.last6hChart.collectAsStateWithLifecycle()
     val refreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
+    val isInitializingData by viewModel.isInitializingData.collectAsStateWithLifecycle()
 
     val pullState = rememberPullRefreshState(
         refreshing = refreshing,
@@ -83,10 +86,35 @@ fun AdminDashboard(
                     Text("Scan QR Code")
                 }
 
+                Button(onClick = onAddParkingLot, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.Add, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Add Parking Lot")
+                }
+
                 OutlinedButton(onClick = onNavigateToReports, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Default.Assessment, null)
                     Spacer(Modifier.width(8.dp))
                     Text("View Reports")
+                }
+
+                Button(
+                    onClick = { viewModel.initializeSampleData() },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isInitializingData
+                ) {
+                    if (isInitializingData) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Initializing...")
+                    } else {
+                        Icon(Icons.Default.Add, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Initialize Sample Data")
+                    }
                 }
 
                 Text("Recent Scans", style = MaterialTheme.typography.titleMedium)
