@@ -90,28 +90,75 @@ fun AdminDashboard(
                 }
 
                 Text("Recent Scans", style = MaterialTheme.typography.titleMedium)
-
-                recent.forEach { scan ->
-                    Card(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(12.dp)) {
-                            val driverInfo = if (scan.driverPhoneNumber.isNotEmpty()) {
-                                "${scan.driverName} - ${scan.driverPhoneNumber}"
-                            } else {
-                                scan.driverName
+                
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(8.dp)
+                    ) {
+                        if (recent.isEmpty()) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "No recent scans",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
-                            val vehicleInfo = if (scan.vehicleModel.isNotEmpty()) {
-                                "${scan.vehicleNumber} - ${scan.vehicleModel}"
-                            } else {
-                                scan.vehicleNumber
+                        } else {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                recent.forEach { scan ->
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                        )
+                                    ) {
+                                        Column(Modifier.padding(8.dp)) {
+                                            val driverInfo = if (scan.driverPhoneNumber.isNotEmpty()) {
+                                                "${scan.driverName} - ${scan.driverPhoneNumber}"
+                                            } else {
+                                                scan.driverName
+                                            }
+                                            val vehicleInfo = if (scan.vehicleModel.isNotEmpty()) {
+                                                "${scan.vehicleNumber} - ${scan.vehicleModel}"
+                                            } else {
+                                                scan.vehicleNumber
+                                            }
+                                            
+                                            Text(
+                                                driverInfo, 
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                            Text(
+                                                vehicleInfo, 
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                            Text(
+                                                scan.status, 
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = when(scan.status) {
+                                                    "ACTIVE" -> MaterialTheme.colorScheme.primary
+                                                    "COMPLETED" -> MaterialTheme.colorScheme.secondary
+                                                    else -> MaterialTheme.colorScheme.onSurface
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
                             }
-                            
-                            Text(driverInfo, style = MaterialTheme.typography.bodyMedium)
-                            Text(vehicleInfo, style = MaterialTheme.typography.bodyMedium)
-                            Text(scan.status, style = MaterialTheme.typography.bodySmall, color = when(scan.status) {
-                                "ACTIVE" -> MaterialTheme.colorScheme.primary
-                                "COMPLETED" -> MaterialTheme.colorScheme.secondary
-                                else -> MaterialTheme.colorScheme.onSurface
-                            })
                         }
                     }
                 }

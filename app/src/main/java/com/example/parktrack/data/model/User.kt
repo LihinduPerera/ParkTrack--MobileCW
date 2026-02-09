@@ -10,7 +10,13 @@ data class User(
     val vehicleNumber: String = "",
     val createdAt: Long = System.currentTimeMillis(),
     val profileImageUrl: String = "",
-    val isVerified: Boolean = false
+    val isVerified: Boolean = false,
+    // Admin-specific fields
+    val badgeId: String = "",
+    val assignedGate: String = "",
+    val totalScans: Int = 0,
+    val scansToday: Int = 0,
+    val department: String = ""
 )
 
 enum class UserRole {

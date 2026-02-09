@@ -98,6 +98,55 @@ class AuthRepository @Inject constructor(
         user.delete().await()
     }
 
+suspend fun updateAssignedGate(userId: String, gate: String): Result<Unit> {
+        return try {
+            db.collection("users").document(userId)
+                .update("assignedGate", gate)
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun incrementScanCount(userId: String): Result<Unit> {
+        return try {
+            val userDoc = db.collection("users").document(userId).get().await()
+            if (userDoc.exists()) {
+                val currentScans = userDoc.getLong("totalScans")?.toInt() ?: 0
+                val currentTodayScans = userDoc.getLong("scansToday")?.toInt() ?: 0
+                
+                db.collection("users").document(userId)
+                    .update(
+                        mapOf(
+                            "totalScans" to currentScans + 1,
+                            "scansToday" to currentTodayScans + 1
+                        )
+                    )
+                    .await()
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("User not found"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun updateProfileImage(userId: String, uri: android.net.Uri): Result<String> {
+        return try {
+            // For now, just update the URL in Firestore
+            // In a real implementation, you would upload to Firebase Storage first
+            val imageUrl = uri.toString() // Placeholder - should upload to Storage
+            db.collection("users").document(userId)
+                .update("profileImageUrl", imageUrl)
+                .await()
+            Result.success(imageUrl)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
     fun logout() {
         auth.signOut()
     }

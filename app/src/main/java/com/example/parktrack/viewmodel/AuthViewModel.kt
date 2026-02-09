@@ -144,10 +144,64 @@ class AuthViewModel @Inject constructor(
             }
     }
 
-    fun updateProfileImage(uri: android.net.Uri, onSuccess: () -> Unit) {
+fun updateProfileImage(uri: android.net.Uri, onSuccess: () -> Unit) {
         viewModelScope.launch {
-
-            onSuccess()
+            try {
+                val result = authRepository.updateProfileImage(_currentUser.value?.id ?: "", uri)
+                if (result.isSuccess) {
+                    // Refresh user data
+                    _currentUser.value?.id?.let { userId ->
+                        val userData = authRepository.getUserData(userId)
+                        if (userData.isSuccess) {
+                            _currentUser.value = userData.getOrNull()
+                        }
+                    }
+                    onSuccess()
+                }
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
+    
+    fun updateAssignedGate(gate: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                val userId = _currentUser.value?.id
+                if (userId != null) {
+                    val result = authRepository.updateAssignedGate(userId, gate)
+                    if (result.isSuccess) {
+                        // Refresh user data
+                        val userData = authRepository.getUserData(userId)
+                        if (userData.isSuccess) {
+                            _currentUser.value = userData.getOrNull()
+                        }
+                        onSuccess()
+                    }
+                }
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
+    
+    fun incrementScanCount() {
+        viewModelScope.launch {
+            try {
+                val userId = _currentUser.value?.id
+                if (userId != null) {
+                    val result = authRepository.incrementScanCount(userId)
+                    if (result.isSuccess) {
+                        // Refresh user data
+                        val userData = authRepository.getUserData(userId)
+                        if (userData.isSuccess) {
+                            _currentUser.value = userData.getOrNull()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // Handle error
+            }
         }
     }
 
