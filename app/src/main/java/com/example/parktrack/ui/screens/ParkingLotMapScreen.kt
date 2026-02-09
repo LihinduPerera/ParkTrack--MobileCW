@@ -6,14 +6,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.parktrack.ui.components.EmptyState
+import com.example.parktrack.utils.NavigationUtils
 import com.example.parktrack.viewmodel.ParkingLotViewModel
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
@@ -29,6 +32,7 @@ fun ParkingLotMapScreen(
     onBackClick: () -> Unit,
     viewModel: ParkingLotViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val parkingLots by viewModel.parkingLots.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
@@ -89,10 +93,26 @@ fun ParkingLotMapScreen(
                             modifier = Modifier.fillMaxSize()
                         )
                     } else {
-                        GoogleMap(
-                            modifier = Modifier.fillMaxSize(),
-                            cameraPositionState = cameraPositionState
-                        ) {
+                         // Zoom to selected parking lot
+                         LaunchedEffect(selectedLotId) {
+                             selectedLotId?.let { lotId ->
+                                 val selectedLot = parkingLots.find { it.id == lotId }
+                                 selectedLot?.let { lot ->
+                                     cameraPositionState.animate(
+                                         CameraUpdateFactory.newLatLngZoom(
+                                             LatLng(lot.latitude, lot.longitude),
+                                             15f
+                                         ),
+                                         1000
+                                     )
+                                 }
+                             }
+                         }
+                         
+                         GoogleMap(
+                             modifier = Modifier.fillMaxSize(),
+                             cameraPositionState = cameraPositionState
+                         ) {
                             parkingLots.forEach { lot ->
                                 Marker(
                                     state = MarkerState(position = LatLng(lot.latitude, lot.longitude)),
@@ -135,7 +155,7 @@ fun ParkingLotMapScreen(
                             modifier = Modifier.fillMaxSize()
                         )
                     } else {
-                        LazyColumn(
+LazyColumn(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(16.dp),
@@ -144,7 +164,10 @@ fun ParkingLotMapScreen(
                             items(parkingLots) { lot ->
                                 ParkingLotCard(
                                     lot = lot,
-                                    onClick = { selectedLotId = lot.id }
+                                    onClick = { selectedLotId = lot.id },
+                                    onNavigateClick = {
+                                        NavigationUtils.navigateToParkingLot(context, lot)
+                                    }
                                 )
                             }
                         }
@@ -171,7 +194,8 @@ fun ParkingLotMapScreen(
 @Composable
 private fun ParkingLotCard(
     lot: com.example.parktrack.data.model.ParkingLot,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onNavigateClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -207,6 +231,19 @@ private fun ParkingLotCard(
                         .padding(start = 12.dp)
                 )
             }
+            
+            // Navigation Button
+            Button(
+                onClick = onNavigateClick,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Navigation,
+                    contentDescription = "Navigate",
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+                Text("Navigate")
+            }
         }
     }
 }
@@ -217,6 +254,8 @@ private fun ParkingLotDetailsBottomSheet(
     lot: com.example.parktrack.data.model.ParkingLot,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
+    
     ModalBottomSheet(
         onDismissRequest = onDismiss
     ) {
@@ -241,6 +280,21 @@ private fun ParkingLotDetailsBottomSheet(
                 DetailRow("Features", "EV Charging Available")
             }
             Spacer(modifier = Modifier.height(16.dp))
+            
+            // Navigation Button
+            Button(
+                onClick = {
+                    NavigationUtils.navigateToParkingLot(context, lot)
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Navigation,
+                    contentDescription = "Navigate",
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+                Text("Navigate to Parking Lot")
+            }
         }
     }
 }
