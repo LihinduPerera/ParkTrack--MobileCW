@@ -114,7 +114,7 @@ class AdminDashboardViewModel @Inject constructor() : ViewModel() {
         _entriesToday.value = entries
         _exitsToday.value = exits
         _last6hChart.value = hourBuckets
-        _recentScans.value = sessions.sortedByDescending { it.entryTime }.take(5)
+        _recentScans.value = sessions.sortedByDescending { it.entryTime?.toDate()?.time ?: 0L }.take(5)
     }
 
     override fun onCleared() {

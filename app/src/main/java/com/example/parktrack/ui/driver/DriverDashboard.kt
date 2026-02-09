@@ -24,6 +24,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.parktrack.ui.components.EnhancedParkingStatusCard
 import com.example.parktrack.ui.components.ParkingHistoryCard
 import com.example.parktrack.ui.components.QRCodeDialog
+import com.example.parktrack.ui.components.VehicleSelectionDialog
 import com.example.parktrack.ui.dashboard.DriverStatsSection
 import com.example.parktrack.ui.dashboard.RecentActivityCompact
 import com.example.parktrack.viewmodel.DriverDashboardViewModel
@@ -55,6 +56,9 @@ fun DriverDashboard(
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val parkingDuration by viewModel.parkingDuration.collectAsStateWithLifecycle()
     val hasActiveSession by viewModel.hasActiveSession.collectAsStateWithLifecycle()
+    val vehicles by viewModel.vehicles.collectAsStateWithLifecycle()
+    val selectedVehicle by viewModel.selectedVehicle.collectAsStateWithLifecycle()
+    val showVehicleSelection by viewModel.showVehicleSelection.collectAsStateWithLifecycle()
 
     val previousSessions by dashboardViewModel.previousSessions.collectAsStateWithLifecycle()
 
@@ -159,16 +163,61 @@ fun DriverDashboard(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                // Selected Vehicle Display (if any)
+                if (selectedVehicle != null) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Selected Vehicle",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = selectedVehicle!!.vehicleNumber,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = MaterialTheme.typography.titleSmall.fontWeight
+                                )
+                                Text(
+                                    text = "${selectedVehicle!!.vehicleModel} • ${selectedVehicle!!.vehicleColor}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                )
+                            }
+                            TextButton(
+                                onClick = { viewModel.showVehicleSelection() }
+                            ) {
+                                Text("Change")
+                            }
+                        }
+                    }
+                }
+                
                 // Generate QR Code Button
                 Button(
                     onClick = {
                         val qrType = if (activeSession != null) "EXIT" else "ENTRY"
-                        viewModel.generateQRCode(qrType)
+                        if (selectedVehicle == null) {
+                            viewModel.showVehicleSelection()
+                        } else {
+                            viewModel.generateQRCode(qrType)
+                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp),
-                    enabled = !isLoading,
+                    enabled = !isLoading && vehicles.isNotEmpty(),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
@@ -192,7 +241,13 @@ fun DriverDashboard(
                         )
                     }
                     Text(
-                        text = if (activeSession != null) "Generate Exit QR Code" else "Generate Entry QR Code",
+                        text = if (selectedVehicle == null) {
+                            "Select Vehicle First"
+                        } else if (activeSession != null) {
+                            "Generate Exit QR Code"
+                        } else {
+                            "Generate Entry QR Code"
+                        },
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                 }
@@ -302,6 +357,20 @@ fun DriverDashboard(
             countdown = qrCountdown,
             qrString = qrCodeData,
             onDismiss = { viewModel.closeQRDialog() }
+        )
+    }
+    
+    if (showVehicleSelection) {
+        VehicleSelectionDialog(
+            vehicles = vehicles,
+            onDismiss = { viewModel.hideVehicleSelection() },
+            onVehicleSelected = { vehicle ->
+                viewModel.selectVehicle(vehicle)
+                // Auto-generate QR after vehicle selection
+                val qrType = if (activeSession != null) "EXIT" else "ENTRY"
+                viewModel.generateQRCodeWithVehicle(vehicle, qrType)
+            },
+            isLoading = false
         )
     }
 }

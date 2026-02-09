@@ -40,7 +40,11 @@ class ParkingSessionRepository @Inject constructor(
             throw Exception("Invalid session: no entry time")
         }
         
-        val durationMinutes = calculateDuration(session.entryTime!!, exitTime)
+        val durationMinutes = if (session.entryTime != null) {
+            calculateDuration(session.entryTime, exitTime)
+        } else {
+            0L
+        }
         
         firestore.collection(sessionsCollection).document(sessionId).update(
             mapOf(

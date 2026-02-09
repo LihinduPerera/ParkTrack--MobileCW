@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.parktrack.data.model.ParkingSession
 import com.example.parktrack.data.model.User
+import com.example.parktrack.data.model.Vehicle
 import com.example.parktrack.data.repository.ParkingSessionRepository
+import com.example.parktrack.data.repository.VehicleRepository
 import com.example.parktrack.utils.QRCodeGenerator
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
@@ -23,7 +25,8 @@ import java.util.concurrent.TimeUnit
 
 @HiltViewModel
 class DriverQRViewModel @Inject constructor(
-    private val parkingSessionRepository: ParkingSessionRepository
+    private val parkingSessionRepository: ParkingSessionRepository,
+    private val vehicleRepository: VehicleRepository
 ) : ViewModel() {
     
     private val firestore = Firebase.firestore
@@ -57,6 +60,15 @@ class DriverQRViewModel @Inject constructor(
     private val _hasActiveSession = MutableStateFlow(false)
     val hasActiveSession: StateFlow<Boolean> = _hasActiveSession.asStateFlow()
     
+    private val _vehicles = MutableStateFlow<List<Vehicle>>(emptyList())
+    val vehicles: StateFlow<List<Vehicle>> = _vehicles.asStateFlow()
+    
+    private val _selectedVehicle = MutableStateFlow<Vehicle?>(null)
+    val selectedVehicle: StateFlow<Vehicle?> = _selectedVehicle.asStateFlow()
+    
+    private val _showVehicleSelection = MutableStateFlow(false)
+    val showVehicleSelection: StateFlow<Boolean> = _showVehicleSelection.asStateFlow()
+    
     private var qrRefreshJob: Job? = null
     private var sessionListenerJob: Job? = null
     private var durationJob: Job? = null
@@ -64,6 +76,7 @@ class DriverQRViewModel @Inject constructor(
     init {
         fetchUserData()
         listenToActiveSession()
+        loadVehicles()
     }
     
     /**
@@ -79,6 +92,22 @@ class DriverQRViewModel @Inject constructor(
                         val user = document.toObject(User::class.java)?.copy(id = userId)
                         _currentUser.value = user
                     }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+    
+    /**
+     * Load driver's vehicles
+     */
+    private fun loadVehicles() {
+        viewModelScope.launch {
+            val userId = auth.currentUser?.uid ?: return@launch
+            
+            try {
+                val result = vehicleRepository.getDriverVehicles(userId)
+                _vehicles.value = result.getOrNull() ?: emptyList()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -102,7 +131,7 @@ class DriverQRViewModel @Inject constructor(
                         
                         // Manage duration counter
                         if (session != null && session.entryTime != null) {
-                            startDurationCounter(session.entryTime!!)
+                            startDurationCounter(session.entryTime)
                         } else {
                             durationJob?.cancel()
                             _parkingDuration.value = "0h 0m"
@@ -146,13 +175,46 @@ class DriverQRViewModel @Inject constructor(
     }
     
     /**
+     * Show vehicle selection dialog before generating QR
+     */
+    fun showVehicleSelection() {
+        if (_vehicles.value.isEmpty()) {
+            // No vehicles registered, reload them
+            loadVehicles()
+        } else {
+            _showVehicleSelection.value = true
+        }
+    }
+    
+    /**
+     * Hide vehicle selection dialog
+     */
+    fun hideVehicleSelection() {
+        _showVehicleSelection.value = false
+    }
+    
+    /**
+     * Select a vehicle
+     */
+    fun selectVehicle(vehicle: Vehicle) {
+        _selectedVehicle.value = vehicle
+    }
+    
+    /**
      * Generate QR code for parking entry/exit
      * @param qrType "ENTRY" or "EXIT" - determines the type of QR code generated
      */
     fun generateQRCode(qrType: String = "ENTRY") {
+        // Check if vehicle is selected
+        if (_selectedVehicle.value == null) {
+            showVehicleSelection()
+            return
+        }
+        
         viewModelScope.launch {
             val user = _currentUser.value
-            if (user == null) {
+            val vehicle = _selectedVehicle.value
+            if (user == null || vehicle == null) {
                 fetchUserData()
                 delay(500)
                 return@launch
@@ -161,10 +223,13 @@ class DriverQRViewModel @Inject constructor(
             _isLoading.value = true
             
             try {
-                // Create QR data with vehicle number and QR type
+                // Create QR data with selected vehicle details and QR type
                 val qrData = QRCodeGenerator.createQRCodeData(
                     userId = user.id,
-                    vehicleNumber = user.vehicleNumber.ifEmpty { user.phoneNumber },
+                    vehicleNumber = vehicle.vehicleNumber,
+                    vehicleId = vehicle.id,
+                    vehicleModel = vehicle.vehicleModel,
+                    vehicleColor = vehicle.vehicleColor,
                     qrType = qrType
                 )
                 
@@ -191,6 +256,14 @@ class DriverQRViewModel @Inject constructor(
     }
     
     /**
+     * Generate QR code with specific vehicle
+     */
+    fun generateQRCodeWithVehicle(vehicle: Vehicle, qrType: String = "ENTRY") {
+        selectVehicle(vehicle)
+        generateQRCode(qrType)
+    }
+    
+    /**
      * Start QR code refresh timer (30 second countdown)
      */
     private fun startQRRefreshTimer() {
@@ -207,7 +280,8 @@ class DriverQRViewModel @Inject constructor(
             
             // Auto-refresh QR code when timer expires
             if (_showQRDialog.value) {
-                generateQRCode()
+                val qrType = if (_activeSession.value != null) "EXIT" else "ENTRY"
+                generateQRCode(qrType)
             }
         }
     }

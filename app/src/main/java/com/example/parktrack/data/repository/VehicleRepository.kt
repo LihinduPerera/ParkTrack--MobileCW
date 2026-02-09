@@ -16,8 +16,9 @@ class VehicleRepository @Inject constructor(
      * Add new vehicle for a driver
      */
     suspend fun addVehicle(vehicle: Vehicle): Result<String> = runCatching {
+        val vehicleData = vehicle.copy(isActive = true)
         val documentRef = firestore.collection(vehiclesCollection).document(vehicle.id)
-        documentRef.set(vehicle).await()
+        documentRef.set(vehicleData).await()
         vehicle.id
     }
 
@@ -27,7 +28,6 @@ class VehicleRepository @Inject constructor(
     suspend fun getDriverVehicles(driverId: String): Result<List<Vehicle>> = runCatching {
         firestore.collection(vehiclesCollection)
             .whereEqualTo("ownerId", driverId)
-            .whereEqualTo("isActive", true)
             .get()
             .await()
             .toObjects(Vehicle::class.java)
