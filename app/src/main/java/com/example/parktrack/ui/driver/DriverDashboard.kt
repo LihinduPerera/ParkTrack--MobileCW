@@ -108,37 +108,37 @@ fun DriverDashboard(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             )
             {
-                AnimatedVisibility(
-                    visible = showContent,
-                    enter = scaleIn(animationSpec = tween(600)) + fadeIn(animationSpec = tween(600))
-                ) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                        shape = MaterialTheme.shapes.large
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "Welcome, Driver!",
-                                style = MaterialTheme.typography.titleLarge,
-                                modifier = Modifier.padding(bottom = 8.dp)
-                            )
-                            Text(
-                                text = currentUser?.fullName ?: "Loading...",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
-                            )
-                            Text(
-                                text = "Your parking management dashboard",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                            )
-                        }
-                    }
-                }
+//                AnimatedVisibility(
+//                    visible = showContent,
+//                    enter = scaleIn(animationSpec = tween(600)) + fadeIn(animationSpec = tween(600))
+//                ) {
+//                    Card(
+//                        modifier = Modifier.fillMaxWidth(),
+//                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+//                        shape = MaterialTheme.shapes.large
+//                    ) {
+//                        Column(
+//                            modifier = Modifier.padding(16.dp),
+//                            horizontalAlignment = Alignment.CenterHorizontally
+//                        ) {
+//                            Text(
+//                                text = "Welcome, Driver!",
+//                                style = MaterialTheme.typography.titleLarge,
+//                                modifier = Modifier.padding(bottom = 8.dp)
+//                            )
+//                            Text(
+//                                text = currentUser?.fullName ?: "Loading...",
+//                                style = MaterialTheme.typography.bodyMedium,
+//                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+//                            )
+//                            Text(
+//                                text = "Your parking management dashboard",
+//                                style = MaterialTheme.typography.bodyMedium,
+//                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+//                            )
+//                        }
+//                    }
+//                }
 
                 // Parking Status Card
                 EnhancedParkingStatusCard(

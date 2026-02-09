@@ -20,6 +20,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.parktrack.ui.admin.components.ActivityChart
 import com.example.parktrack.ui.admin.components.StatsRow
 import com.example.parktrack.viewmodel.AdminDashboardViewModel
+import com.example.parktrack.data.model.EnrichedParkingSession
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
@@ -93,9 +94,24 @@ fun AdminDashboard(
                 recent.forEach { scan ->
                     Card(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(12.dp)) {
-                            Text(scan.driverName)
-                            Text(scan.vehicleNumber)
-                            Text(scan.status)
+                            val driverInfo = if (scan.driverPhoneNumber.isNotEmpty()) {
+                                "${scan.driverName} - ${scan.driverPhoneNumber}"
+                            } else {
+                                scan.driverName
+                            }
+                            val vehicleInfo = if (scan.vehicleModel.isNotEmpty()) {
+                                "${scan.vehicleNumber} - ${scan.vehicleModel}"
+                            } else {
+                                scan.vehicleNumber
+                            }
+                            
+                            Text(driverInfo, style = MaterialTheme.typography.bodyMedium)
+                            Text(vehicleInfo, style = MaterialTheme.typography.bodyMedium)
+                            Text(scan.status, style = MaterialTheme.typography.bodySmall, color = when(scan.status) {
+                                "ACTIVE" -> MaterialTheme.colorScheme.primary
+                                "COMPLETED" -> MaterialTheme.colorScheme.secondary
+                                else -> MaterialTheme.colorScheme.onSurface
+                            })
                         }
                     }
                 }
