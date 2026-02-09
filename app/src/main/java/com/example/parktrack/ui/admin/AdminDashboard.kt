@@ -9,6 +9,7 @@ import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +27,7 @@ fun AdminDashboard(
     onLogout: () -> Unit,
     onScanQRCode: () -> Unit,
     onNavigateToProfile: () -> Unit,
+    onNavigateToReports: () -> Unit,
     viewModel: AdminDashboardViewModel = hiltViewModel()
 ) {
 
@@ -78,6 +80,12 @@ fun AdminDashboard(
                     Icon(Icons.Default.QrCode, null)
                     Spacer(Modifier.width(8.dp))
                     Text("Scan QR Code")
+                }
+
+                OutlinedButton(onClick = onNavigateToReports, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.Assessment, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("View Reports")
                 }
 
                 Text("Recent Scans", style = MaterialTheme.typography.titleMedium)

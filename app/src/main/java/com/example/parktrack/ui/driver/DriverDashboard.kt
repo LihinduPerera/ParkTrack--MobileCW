@@ -36,6 +36,8 @@ fun DriverDashboard(
     onViewBilling: () -> Unit,
     onViewReports: () -> Unit,
     onNavigateToProfile: () -> Unit,
+    onNavigateToVehicles: (() -> Unit)? = null,
+    onNavigateToParkingLots: (() -> Unit)? = null,
     viewModel: DriverQRViewModel = hiltViewModel(),
     dashboardViewModel: DriverDashboardViewModel = hiltViewModel()
 
@@ -195,7 +197,36 @@ fun DriverDashboard(
                     )
                 }
 
-                // --- NEW BILLING & REPORTS SECTION ---
+                // --- QUICK ACTIONS SECTION ---
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Vehicles Button
+                    OutlinedButton(
+                        onClick = { onNavigateToVehicles?.invoke() },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Text("My Vehicles", fontSize = androidx.compose.material3.MaterialTheme.typography.labelSmall.fontSize)
+                    }
+
+                    // Parking Lots Button
+                    OutlinedButton(
+                        onClick = { onNavigateToParkingLots?.invoke() },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Text("Parking Lots", fontSize = androidx.compose.material3.MaterialTheme.typography.labelSmall.fontSize)
+                    }
+                }
+                // --- END QUICK ACTIONS ---
 
                 // Billing Button (Gold Theme)
                 Button(

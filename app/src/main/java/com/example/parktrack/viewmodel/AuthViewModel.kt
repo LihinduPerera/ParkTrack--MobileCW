@@ -169,14 +169,14 @@ class AuthViewModel @Inject constructor(
         onError: (String) -> Unit
     ) {
         viewModelScope.launch {
+            _authState.value = AuthState.Loading
             try {
-                authRepository.deleteAccount(
-                    firebaseAuth = TODO()
-                )
+                authRepository.deleteAccount(firebaseAuth = firebaseAuth)
                 _currentUser.value = null
                 _authState.value = AuthState.Unauthenticated
                 onSuccess()
             } catch (e: Exception) {
+                _authState.value = AuthState.Error(e.message ?: "Failed to delete account")
                 onError(e.message ?: "Failed to delete account")
             }
         }

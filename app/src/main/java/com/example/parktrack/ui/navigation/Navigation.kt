@@ -19,7 +19,7 @@ import com.example.parktrack.ui.auth.RegisterScreen
 import com.example.parktrack.ui.driver.DriverDashboard
 import com.example.parktrack.ui.onboarding.OnboardingScreen
 import com.example.parktrack.ui.screens.BillingScreen
-import com.example.parktrack.ui.screens.BillingViewModel
+import com.example.parktrack.ui.screens.ReportsScreen
 import com.example.parktrack.viewmodel.AuthState
 import com.example.parktrack.viewmodel.AuthViewModel
 import kotlinx.coroutines.launch
@@ -41,6 +41,8 @@ sealed class Screen(val route: String) {
     object AccountSettings : Screen("account_settings")
     object UpdateEmail : Screen("update_email")
     object Preferences : Screen("preferences")
+    object VehicleManagement : Screen("vehicle_management")
+    object ParkingLotMap : Screen("parking_lot_map")
 }
 
 
@@ -156,6 +158,12 @@ fun ParkTrackNavHost(
                 },
                 onNavigateToProfile = {
                     navController.navigate(Screen.Profile.route)
+                },
+                onNavigateToVehicles = {
+                    navController.navigate(Screen.VehicleManagement.route)
+                },
+                onNavigateToParkingLots = {
+                    navController.navigate(Screen.ParkingLotMap.route)
                 }
             )
         }
@@ -169,7 +177,8 @@ fun ParkTrackNavHost(
                 onScanQRCode = {
                     navController.navigate(Screen.QRScanner.route)
                 },
-                onNavigateToProfile = { navController.navigate(Screen.SecurityProfile.route) }
+                onNavigateToProfile = { navController.navigate(Screen.SecurityProfile.route) },
+                onNavigateToReports = { navController.navigate(Screen.Reports.route) }
             )
         }
         composable(Screen.QRScanner.route) {
@@ -180,8 +189,9 @@ fun ParkTrackNavHost(
             )
         }
         composable(Screen.Billing.route) {
-            val billingViewModel: BillingViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
-            BillingScreen(viewModel = billingViewModel)
+            BillingScreen(
+                onBackClick = { navController.popBackStack() }
+            )
         }
 
         composable(Screen.Profile.route) {
@@ -243,15 +253,24 @@ fun ParkTrackNavHost(
             )
         }
 
+        composable(Screen.VehicleManagement.route) {
+            val userId = (authState as? AuthState.Authenticated)?.user?.id ?: ""
+            com.example.parktrack.ui.driver.VehicleManagementScreen(
+                driverId = userId,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
 
-        // 3.  Placeholder for Reports
+        composable(Screen.ParkingLotMap.route) {
+            com.example.parktrack.ui.screens.ParkingLotMapScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
         composable(Screen.Reports.route) {
-            androidx.compose.foundation.layout.Box(
-                modifier = androidx.compose.ui.Modifier.fillMaxSize(),
-                contentAlignment = androidx.compose.ui.Alignment.Center
-            ) {
-                androidx.compose.material3.Text("Reports Screen Coming Soon")
-            }
+            ReportsScreen(
+                onBackClick = { navController.popBackStack() }
+            )
         }
     }
 }

@@ -103,4 +103,14 @@ dependencies {
     
     // Pull-to-refresh
     implementation("androidx.compose.material:material:1.6.0")
+    
+    // Google Maps
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.maps.android:maps-compose:4.3.0")
+    
+    // PDF Generation for reports
+    implementation("com.itextpdf:itext7-core:7.2.5")
+    
+    // Date/Time
+    implementation("joda-time:joda-time:2.12.5")
 }

@@ -82,14 +82,13 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    suspend fun deleteAccount(firebaseAuth: Any) {
+    suspend fun deleteAccount(firebaseAuth: FirebaseAuth) {
         val user = auth.currentUser
-        user?.delete()?.await()
             ?: throw Exception("User not logged in")
-
+        
         val userId = user.uid
 
-        // Delete Firestore user document
+        // Delete Firestore user document first
         db.collection("users")
             .document(userId)
             .delete()
