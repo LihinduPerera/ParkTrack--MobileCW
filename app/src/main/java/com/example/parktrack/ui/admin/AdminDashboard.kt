@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,6 +34,7 @@ fun AdminDashboard(
     onNavigateToReports: () -> Unit,
     onAddParkingLot: () -> Unit,
     onNavigateToBillingManagement: () -> Unit = {},
+    onNavigateToQRHistory: () -> Unit = {},
     viewModel: AdminDashboardViewModel = hiltViewModel()
 ) {
 
@@ -104,6 +106,12 @@ fun AdminDashboard(
                     Icon(Icons.Default.Payments, null)
                     Spacer(Modifier.width(8.dp))
                     Text("Manage Payments & Tiers")
+                }
+
+                OutlinedButton(onClick = onNavigateToQRHistory, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.History, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("View QR Scan History")
                 }
 
                 Button(
