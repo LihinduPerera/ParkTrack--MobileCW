@@ -38,8 +38,13 @@ fun SecurityProfileScreen(
     onPreferencesClick: () -> Unit
 ) {
 
-    val user by authViewModel.currentUser.collectAsState()
+val user by authViewModel.currentUser.collectAsState()
     val context = LocalContext.current
+    val currentUser = user // Create local variable for smart cast
+    
+    // Gate assignment dialog state
+    var showGateDialog by remember { mutableStateOf(false) }
+    val availableGates = listOf("Main Gate", "Exit Gate A", "Exit Gate B", "Gate A - North", "Gate B - South")
 
     // 1. Image Picker Launcher
     val launcher = rememberLauncherForActivityResult(
@@ -97,16 +102,32 @@ fun SecurityProfileScreen(
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
-            Text("Officer John Smith", style = MaterialTheme.typography.headlineSmall)
-            Text("ID: GUARD-9920", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+Spacer(modifier = Modifier.height(16.dp))
+            Text(currentUser?.fullName ?: "Security Officer", style = MaterialTheme.typography.headlineSmall)
+            Text(
+                text = if (currentUser?.badgeId?.isNotEmpty() == true) "ID: ${currentUser.badgeId}" 
+                       else if (currentUser?.id?.isNotEmpty() == true) "ID: ${currentUser.id.take(8).uppercase()}" 
+                       else "ID: GUARD-XXXX",
+                style = MaterialTheme.typography.bodyMedium, 
+                color = Color.Gray
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 2. Assigned Gate & Scan Stats
+// 2. Assigned Gate & Scan Stats
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                InfoCard("Assigned Gate", "Gate A - North", Icons.Default.DirectionsCar, Modifier.weight(1f))
-                InfoCard("Scans Today", "42", Icons.Default.QrCodeScanner, Modifier.weight(1f))
+                InfoCard(
+                    "Assigned Gate", 
+                    currentUser?.assignedGate?.ifEmpty { "Not Assigned" } ?: "Not Assigned", 
+                    Icons.Default.DirectionsCar, 
+                    Modifier.weight(1f).clickable { showGateDialog = true }
+                )
+                InfoCard(
+                    "Scans Today", 
+                    currentUser?.scansToday?.toString() ?: "0", 
+                    Icons.Default.QrCodeScanner, 
+                    Modifier.weight(1f)
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -135,7 +156,7 @@ fun SecurityProfileScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // 4. Logout
+// 4. Logout
             Button(
                 onClick = onLogoutClick,
                 modifier = Modifier.fillMaxWidth(),
@@ -144,6 +165,51 @@ fun SecurityProfileScreen(
                 Text("Logout")
             }
         }
+    }
+    
+    // Gate Assignment Dialog
+    if (showGateDialog) {
+        AlertDialog(
+            onDismissRequest = { showGateDialog = false },
+            title = { Text("Assign Gate") },
+            text = {
+                Column {
+                    Text("Select your assigned gate:")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    availableGates.forEach { gate ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    authViewModel.updateAssignedGate(gate) {
+                                        Toast.makeText(context, "Gate assigned: $gate", Toast.LENGTH_SHORT).show()
+                                        showGateDialog = false
+                                    }
+                                }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = currentUser?.assignedGate == gate,
+                                onClick = null
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(gate)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showGateDialog = false }) {
+                    Text("Done")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showGateDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

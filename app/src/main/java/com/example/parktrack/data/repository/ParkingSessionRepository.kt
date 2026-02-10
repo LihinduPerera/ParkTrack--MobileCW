@@ -40,7 +40,11 @@ class ParkingSessionRepository @Inject constructor(
             throw Exception("Invalid session: no entry time")
         }
         
-        val durationMinutes = calculateDuration(session.entryTime!!, exitTime)
+        val durationMinutes = if (session.entryTime != null) {
+            calculateDuration(session.entryTime, exitTime)
+        } else {
+            0L
+        }
         
         firestore.collection(sessionsCollection).document(sessionId).update(
             mapOf(
@@ -181,5 +185,17 @@ class ParkingSessionRepository @Inject constructor(
             hours > 0 -> "${hours}h ${mins}m"
             else -> "${mins}m"
         }
+    }
+    
+    /**
+     * Get total completed sessions count for a driver
+     */
+    suspend fun getTotalCompletedSessionsCount(driverId: String): Result<Int> = runCatching {
+        firestore.collection(sessionsCollection)
+            .whereEqualTo("driverId", driverId)
+            .whereEqualTo("status", "COMPLETED")
+            .get()
+            .await()
+            .size()
     }
 }

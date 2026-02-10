@@ -11,13 +11,13 @@ import androidx.compose.ui.graphics.Color
 private val DarkColorScheme = darkColorScheme(
     primary = PrimaryColor,
     secondary = SecondaryColor,
-    background = BackgroundColor,
-    surface = SurfaceColor,
+    background = BackgroundColorDark,
+    surface = SurfaceColorDark,
     error = ErrorColor,
     onPrimary = OnPrimary,
     onSecondary = OnSecondary,
-    onBackground = OnBackground,
-    onSurface = OnSurface,
+    onBackground = OnBackgroundDark,
+    onSurface = OnSurfaceDark,
     surfaceVariant = Color(0xFF2C2C2E),
     onSurfaceVariant = Color(0xFFAEAEB2)
 )
@@ -25,18 +25,20 @@ private val DarkColorScheme = darkColorScheme(
 private val LightColorScheme = lightColorScheme(
     primary = PrimaryColor,
     secondary = SecondaryColor,
-    background = BackgroundColor,
-    surface = SurfaceColor,
+    background = BackgroundColorLight,
+    surface = SurfaceColorLight,
     error = ErrorColor,
     onPrimary = OnPrimary,
     onSecondary = OnSecondary,
-    onBackground = OnBackground,
-    onSurface = OnSurface
+    onBackground = OnBackgroundLight,
+    onSurface = OnSurfaceLight,
+    surfaceVariant = Color(0xFFE5E5EA),
+    onSurfaceVariant = Color(0xFF6C6C70)
 )
 
 @Composable
 fun ParkTrackTheme(
-    darkTheme: Boolean = true, // Force dark theme for dark modern look
+    darkTheme: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme

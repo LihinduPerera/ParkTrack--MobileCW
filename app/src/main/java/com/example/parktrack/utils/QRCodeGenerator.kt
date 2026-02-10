@@ -52,7 +52,7 @@ object QRCodeGenerator {
     }
     
     /**
-     * Create QRCodeData object with current timestamp
+     * Create QRCodeData object with current timestamp (old method for backward compatibility)
      * @param userId The user ID
      * @param vehicleNumber The vehicle number
      * @param qrType The type of QR code - "ENTRY" or "EXIT"
@@ -65,6 +65,39 @@ object QRCodeGenerator {
         return QRCodeData(
             userId = userId,
             vehicleNumber = vehicleNumber,
+            timestamp = timestamp,
+            securityHash = hash,
+            qrType = qrType
+        )
+    }
+    
+    /**
+     * Create QRCodeData object with vehicle details and current timestamp
+     * @param userId The user ID
+     * @param vehicleNumber The vehicle number
+     * @param vehicleId The vehicle ID
+     * @param vehicleModel The vehicle model
+     * @param vehicleColor The vehicle color
+     * @param qrType The type of QR code - "ENTRY" or "EXIT"
+     * @return QRCodeData object with generated security hash
+     */
+    fun createQRCodeData(
+        userId: String, 
+        vehicleNumber: String,
+        vehicleId: String = "",
+        vehicleModel: String = "",
+        vehicleColor: String = "",
+        qrType: String = "ENTRY"
+    ): QRCodeData {
+        val timestamp = System.currentTimeMillis()
+        val hash = generateSecurityHash(userId, timestamp)
+        
+        return QRCodeData(
+            userId = userId,
+            vehicleNumber = vehicleNumber,
+            vehicleId = vehicleId,
+            vehicleModel = vehicleModel,
+            vehicleColor = vehicleColor,
             timestamp = timestamp,
             securityHash = hash,
             qrType = qrType

@@ -31,7 +31,9 @@ fun ScanSuccessDialog(
     session: ParkingSession,
     sessionType: String, // "ENTRY" or "EXIT"
     driverName: String,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    vehicleModel: String = "",
+    vehicleColor: String = ""
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -80,12 +82,20 @@ fun ScanSuccessDialog(
                     textAlign = TextAlign.Center
                 )
                 
-                // Vehicle number
-                Text(
-                    text = "Vehicle: ${session.vehicleNumber}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
+                 // Vehicle number and details
+                 Text(
+                     text = "Vehicle: ${session.vehicleNumber}",
+                     style = MaterialTheme.typography.bodyMedium,
+                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                 )
+                 
+                 if (vehicleModel.isNotEmpty() || vehicleColor.isNotEmpty()) {
+                     Text(
+                         text = "${vehicleModel}${if (vehicleModel.isNotEmpty() && vehicleColor.isNotEmpty()) " • " else ""}${vehicleColor}",
+                         style = MaterialTheme.typography.bodySmall,
+                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                     )
+                 }
                 
                 // Gate location
                 Text(

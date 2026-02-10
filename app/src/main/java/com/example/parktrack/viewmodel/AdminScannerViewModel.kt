@@ -66,6 +66,12 @@ class AdminScannerViewModel @Inject constructor(
     private val _scannedDriver = MutableStateFlow<User?>(null)
     val scannedDriver: StateFlow<User?> = _scannedDriver.asStateFlow()
     
+    private val _scannedVehicleModel = MutableStateFlow("")
+    val scannedVehicleModel: StateFlow<String> = _scannedVehicleModel.asStateFlow()
+    
+    private val _scannedVehicleColor = MutableStateFlow("")
+    val scannedVehicleColor: StateFlow<String> = _scannedVehicleColor.asStateFlow()
+    
     // Processing lock to prevent duplicate scans
     private var isProcessing = false
     private var lastProcessedQRString = ""
@@ -173,8 +179,10 @@ class AdminScannerViewModel @Inject constructor(
                     return@launch
                 }
                 
-                _scannedDriver.value = driver
-                _scannedQRData.value = qrData
+                 _scannedDriver.value = driver
+                 _scannedQRData.value = qrData
+                 _scannedVehicleModel.value = qrData.vehicleModel
+                 _scannedVehicleColor.value = qrData.vehicleColor
                 
                 // Check if driver has active session
                 val activeSession = parkingSessionRepository
@@ -292,10 +300,14 @@ class AdminScannerViewModel @Inject constructor(
             val result = parkingSessionRepository.completeSession(activeSession.id, exitTime)
             
             if (result.isSuccess) {
-                val duration = parkingSessionRepository.calculateDuration(
-                    activeSession.entryTime!!, 
-                    exitTime
-                )
+                val duration = if (activeSession.entryTime != null) {
+                    parkingSessionRepository.calculateDuration(
+                        activeSession.entryTime, 
+                        exitTime
+                    )
+                } else {
+                    0L
+                }
                 
                 val hours = duration / 60
                 val minutes = duration % 60
@@ -369,6 +381,8 @@ class AdminScannerViewModel @Inject constructor(
         _scanResultMessage.value = ""
         _scannedQRData.value = null
         _scannedDriver.value = null
+        _scannedVehicleModel.value = ""
+        _scannedVehicleColor.value = ""
         _sessionType.value = ""
         isProcessing = false
     }
@@ -412,10 +426,14 @@ class AdminScannerViewModel @Inject constructor(
                 val result = parkingSessionRepository.completeSession(sessionId, exitTime)
                 
                 if (result.isSuccess) {
-                    val duration = parkingSessionRepository.calculateDuration(
-                        session.entryTime!!,
-                        exitTime
-                    )
+                    val duration = if (session.entryTime != null) {
+                        parkingSessionRepository.calculateDuration(
+                            session.entryTime,
+                            exitTime
+                        )
+                    } else {
+                        0L
+                    }
                     
                     val hours = duration / 60
                     val minutes = duration % 60

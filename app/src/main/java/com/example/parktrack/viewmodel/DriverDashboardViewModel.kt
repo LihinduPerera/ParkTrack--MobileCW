@@ -76,7 +76,7 @@ class DriverDashboardViewModel @Inject constructor() : ViewModel() {
                     it.toObject(ParkingSession::class.java)?.copy(id = it.id)
                 } ?: emptyList()
 
-                _previousSessions.value = sessions.sortedByDescending { it.entryTime }
+                _previousSessions.value = sessions.sortedByDescending { it.entryTime?.toDate()?.time ?: 0L }
                 _recentThreeSessions.value = _previousSessions.value.take(3)
 
                 calculateStatsFromSessions(sessions)

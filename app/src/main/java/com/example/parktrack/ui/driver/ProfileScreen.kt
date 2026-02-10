@@ -24,6 +24,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.parktrack.R
 import com.example.parktrack.viewmodel.AuthViewModel
+import com.example.parktrack.data.model.SubscriptionTier
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -46,6 +47,11 @@ fun ProfileScreen(
 
     val user by authViewModel.currentUser.collectAsState()
     val context = LocalContext.current
+
+    // Load driver statistics when screen loads
+    LaunchedEffect(Unit) {
+        authViewModel.loadDriverStats()
+    }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -102,10 +108,16 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // 2. Statistics Display (VaultPark style)
+            val tier = user?.subscriptionTier
+            val tierDisplay = when(tier) {
+                SubscriptionTier.GOLD -> "Gold"
+                SubscriptionTier.PLATINUM -> "Platinum"
+                else -> "Normal"
+            }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                StatItem("Total Parks", "128")
-                StatItem("Vault Points", "450")
-                StatItem("Tier", "Gold")
+                StatItem("Total Parks", user?.totalParks?.toString() ?: "0", MaterialTheme.colorScheme.primary)
+                StatItem("Vault Points", user?.valetPoints?.toString() ?: "0", MaterialTheme.colorScheme.primary)
+                StatItem("Tier", tierDisplay, getTierColor(tier))
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -118,7 +130,7 @@ fun ProfileScreen(
                         supportingContent = {
 
                             val user by authViewModel.currentUser.collectAsState()
-                            Text("${user?.name ?: "John Doe"} - ${user?.email ?: ""}")
+                            Text("${user?.fullName?.takeIf { it.isNotBlank() } ?: user?.name?.takeIf { it.isNotBlank() } ?: "John Doe"} - ${user?.email ?: ""}")
                         },
                         leadingContent = { Icon(Icons.Default.Person, null) },
                         trailingContent = { Icon(Icons.Default.ChevronRight, null) },
@@ -199,9 +211,18 @@ fun ProfileScreen(
 }
 
 @Composable
-fun StatItem(label: String, value: String) {
+fun StatItem(label: String, value: String, valueColor: Color = MaterialTheme.colorScheme.primary) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, style = MaterialTheme.typography.headlineSmall, color = Color(0xFFFFD700)) // Gold
+        Text(value, style = MaterialTheme.typography.headlineSmall, color = valueColor)
         Text(label, style = MaterialTheme.typography.labelMedium)
+    }
+}
+
+@Composable
+fun getTierColor(tier: SubscriptionTier?): Color {
+    return when(tier) {
+        SubscriptionTier.GOLD -> Color(0xFFFFD700) // Gold
+        SubscriptionTier.PLATINUM -> Color(0xFFE5E4E2) // Platinum
+        else -> MaterialTheme.colorScheme.primary // Normal
     }
 }

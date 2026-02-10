@@ -67,6 +67,8 @@ fun QRScannerScreen(
     val scannedDriver by viewModel.scannedDriver.collectAsStateWithLifecycle()
     val sessionType by viewModel.sessionType.collectAsStateWithLifecycle()
     val scannedSession by viewModel.scannedQRData.collectAsStateWithLifecycle()
+    val scannedVehicleModel by viewModel.scannedVehicleModel.collectAsStateWithLifecycle()
+    val scannedVehicleColor by viewModel.scannedVehicleColor.collectAsStateWithLifecycle()
     
     var showGateMenu by remember { mutableStateOf(false) }
     
@@ -336,7 +338,9 @@ fun QRScannerScreen(
                 session = displaySession,
                 sessionType = sessionType,
                 driverName = scannedDriver!!.fullName,
-                onDismiss = { viewModel.resetScanState() }
+                onDismiss = { viewModel.resetScanState() },
+                vehicleModel = scannedVehicleModel,
+                vehicleColor = scannedVehicleColor
             )
         }
     }
