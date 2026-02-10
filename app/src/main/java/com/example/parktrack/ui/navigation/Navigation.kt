@@ -11,6 +11,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.parktrack.ui.admin.AdminBillingManagementScreen
 import com.example.parktrack.ui.admin.AdminDashboard
 import com.example.parktrack.ui.admin.QRScannerScreen
 import com.example.parktrack.ui.admin.SecurityProfileScreen
@@ -47,6 +48,7 @@ sealed class Screen(val route: String) {
     object AddParkingLot : Screen("add_parking_lot")
     object ParkingLotManagement : Screen("parking_lot_management")
     object PricingInfo : Screen("pricing_info")
+    object AdminBillingManagement : Screen("admin_billing_management")
 }
 
 
@@ -186,7 +188,8 @@ fun ParkTrackNavHost(
                 },
                 onNavigateToProfile = { navController.navigate(Screen.SecurityProfile.route) },
                 onNavigateToReports = { navController.navigate(Screen.Reports.route) },
-                onAddParkingLot = { navController.navigate(Screen.ParkingLotManagement.route) }
+                onAddParkingLot = { navController.navigate(Screen.ParkingLotManagement.route) },
+                onNavigateToBillingManagement = { navController.navigate(Screen.AdminBillingManagement.route) }
             )
         }
         composable(Screen.QRScanner.route) {
@@ -294,6 +297,12 @@ fun ParkTrackNavHost(
 
         composable(Screen.PricingInfo.route) {
             PricingInfoScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.AdminBillingManagement.route) {
+            AdminBillingManagementScreen(
                 onBackClick = { navController.popBackStack() }
             )
         }

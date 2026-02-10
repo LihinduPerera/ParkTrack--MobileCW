@@ -117,4 +117,125 @@ class UserRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    // ==================== ADMIN FUNCTIONS ====================
+
+    /**
+     * Search users by email (for admin to find drivers)
+     */
+    suspend fun searchUsersByEmail(emailQuery: String): Result<List<User>> {
+        return try {
+            // Firebase doesn't support partial text search, so we get all users and filter
+            // In production, consider using Algolia or similar for better search
+            val snapshot = firestore.collection(usersCollection)
+                .orderBy("email")
+                .startAt(emailQuery.lowercase())
+                .endAt(emailQuery.lowercase() + "\uf8ff")
+                .limit(20)
+                .get()
+                .await()
+
+            val users = snapshot.toObjects(User::class.java)
+                .filter { it.email.contains(emailQuery, ignoreCase = true) }
+            Result.success(users)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Get user by email (exact match)
+     */
+    suspend fun getUserByEmail(email: String): Result<User?> {
+        return try {
+            val snapshot = firestore.collection(usersCollection)
+                .whereEqualTo("email", email.lowercase())
+                .limit(1)
+                .get()
+                .await()
+
+            val user = snapshot.documents.firstOrNull()?.toObject(User::class.java)
+            Result.success(user)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Get all drivers (users with DRIVER role)
+     */
+    suspend fun getAllDrivers(): Result<List<User>> {
+        return try {
+            val snapshot = firestore.collection(usersCollection)
+                .whereEqualTo("role", "DRIVER")
+                .orderBy("name")
+                .get()
+                .await()
+
+            val users = snapshot.toObjects(User::class.java)
+            Result.success(users)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Update user tier by admin (after payment confirmation)
+     */
+    suspend fun updateUserTierByAdmin(
+        userId: String,
+        newTier: SubscriptionTier,
+        adminId: String,
+        adminName: String
+    ): Result<Unit> {
+        return try {
+            val updates = mapOf(
+                "subscriptionTier" to newTier.name,
+                "tierUpdatedBy" to adminId,
+                "tierUpdatedByName" to adminName,
+                "tierUpdatedAt" to System.currentTimeMillis()
+            )
+
+            firestore.collection(usersCollection)
+                .document(userId)
+                .update(updates)
+                .await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Get users by email domain or partial match (admin search)
+     */
+    suspend fun searchDrivers(searchQuery: String): Result<List<User>> {
+        return try {
+            // Get all drivers and filter locally for more flexible search
+            val snapshot = firestore.collection(usersCollection)
+                .whereEqualTo("role", "DRIVER")
+                .limit(100)
+                .get()
+                .await()
+
+            val allDrivers = snapshot.toObjects(User::class.java)
+
+            // Filter by search query (name, email, or vehicle number)
+            val filteredDrivers = if (searchQuery.isBlank()) {
+                allDrivers
+            } else {
+                allDrivers.filter { user ->
+                    user.email.contains(searchQuery, ignoreCase = true) ||
+                    user.name.contains(searchQuery, ignoreCase = true) ||
+                    user.fullName.contains(searchQuery, ignoreCase = true) ||
+                    user.vehicleNumber.contains(searchQuery, ignoreCase = true)
+                }
+            }
+
+            Result.success(filteredDrivers)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

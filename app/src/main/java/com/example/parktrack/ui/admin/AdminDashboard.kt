@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,6 +32,7 @@ fun AdminDashboard(
     onNavigateToProfile: () -> Unit,
     onNavigateToReports: () -> Unit,
     onAddParkingLot: () -> Unit,
+    onNavigateToBillingManagement: () -> Unit = {},
     viewModel: AdminDashboardViewModel = hiltViewModel()
 ) {
 
@@ -96,6 +98,12 @@ fun AdminDashboard(
                     Icon(Icons.Default.Assessment, null)
                     Spacer(Modifier.width(8.dp))
                     Text("View Reports")
+                }
+
+                Button(onClick = onNavigateToBillingManagement, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)) {
+                    Icon(Icons.Default.Payments, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Manage Payments & Tiers")
                 }
 
                 Button(

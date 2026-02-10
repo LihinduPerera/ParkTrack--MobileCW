@@ -4,6 +4,8 @@ import com.example.parktrack.billing.calculateParkingCharge
 import com.example.parktrack.data.model.Invoice
 import com.example.parktrack.data.model.ParkingCharge
 import com.example.parktrack.data.model.ParkingRate
+import com.example.parktrack.data.model.PaymentConfirmation
+import com.example.parktrack.data.model.TierUpgradeRecord
 import com.example.parktrack.data.model.User
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
@@ -12,6 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import java.util.Calendar
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -270,5 +273,257 @@ class BillingRepository @Inject constructor(
         val year = cal.get(Calendar.YEAR)
         val month = (cal.get(Calendar.MONTH) + 1).toString().padStart(2, '0')
         return "$year-$month"
+    }
+
+    // ==================== ADMIN FUNCTIONS ====================
+
+    private val paymentConfirmationsCollection = "paymentConfirmations"
+    private val tierUpgradeRecordsCollection = "tierUpgradeRecords"
+
+    /**
+     * Confirm payment for an invoice (Admin only)
+     */
+    suspend fun confirmInvoicePayment(
+        invoiceId: String,
+        amountPaid: Double,
+        adminId: String,
+        adminName: String,
+        paymentMethod: String = "CASH",
+        notes: String = ""
+    ): Result<PaymentConfirmation> = runCatching {
+        // Get the invoice
+        val invoice = getInvoiceById(invoiceId).getOrThrow()
+            ?: throw Exception("Invoice not found")
+
+        // Create payment confirmation record
+        val confirmation = PaymentConfirmation(
+            id = UUID.randomUUID().toString(),
+            driverId = invoice.driverId,
+            invoiceId = invoiceId,
+            amount = amountPaid,
+            paymentMethod = paymentMethod,
+            paymentType = "PARKING_CHARGE",
+            confirmedByAdminId = adminId,
+            confirmedByAdminName = adminName,
+            notes = notes
+        )
+
+        // Save payment confirmation
+        firestore.collection(paymentConfirmationsCollection)
+            .document(confirmation.id)
+            .set(confirmation)
+            .await()
+
+        // Update invoice payment status
+        val newBalance = invoice.netAmount - (invoice.amountPaid + amountPaid)
+        val isFullyPaid = newBalance <= 0
+
+        firestore.collection(invoicesCollection).document(invoiceId).update(mapOf(
+            "amountPaid" to (invoice.amountPaid + amountPaid),
+            "balanceDue" to if (newBalance > 0) newBalance else 0.0,
+            "isPaid" to isFullyPaid,
+            "paymentStatus" to if (isFullyPaid) "PAID" else "PARTIAL",
+            "paidDate" to if (isFullyPaid) Timestamp.now() else null,
+            "updatedAt" to Timestamp.now()
+        )).await()
+
+        confirmation
+    }
+
+    /**
+     * Confirm payment for a specific charge (Admin only)
+     */
+    suspend fun confirmChargePayment(
+        chargeId: String,
+        adminId: String,
+        adminName: String,
+        paymentMethod: String = "CASH",
+        notes: String = ""
+    ): Result<PaymentConfirmation> = runCatching {
+        // Get the charge
+        val chargeDoc = firestore.collection(chargesCollection).document(chargeId).get().await()
+        val charge = chargeDoc.toObject(ParkingCharge::class.java)
+            ?: throw Exception("Charge not found")
+
+        // Create payment confirmation record
+        val confirmation = PaymentConfirmation(
+            id = UUID.randomUUID().toString(),
+            driverId = charge.driverId,
+            chargeId = chargeId,
+            amount = charge.finalCharge,
+            paymentMethod = paymentMethod,
+            paymentType = "PARKING_CHARGE",
+            confirmedByAdminId = adminId,
+            confirmedByAdminName = adminName,
+            notes = notes
+        )
+
+        // Save payment confirmation
+        firestore.collection(paymentConfirmationsCollection)
+            .document(confirmation.id)
+            .set(confirmation)
+            .await()
+
+        // Update charge payment status
+        updateChargePayment(chargeId, true, paymentMethod)
+
+        confirmation
+    }
+
+    /**
+     * Get all invoices for admin review
+     */
+    suspend fun getAllInvoices(limit: Int = 100): Result<List<Invoice>> = runCatching {
+        firestore.collection(invoicesCollection)
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(limit.toLong())
+            .get()
+            .await()
+            .toObjects(Invoice::class.java)
+    }
+
+    /**
+     * Get pending invoices for admin review
+     */
+    suspend fun getPendingInvoices(limit: Int = 100): Result<List<Invoice>> = runCatching {
+        firestore.collection(invoicesCollection)
+            .whereEqualTo("paymentStatus", "PENDING")
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(limit.toLong())
+            .get()
+            .await()
+            .toObjects(Invoice::class.java)
+    }
+
+    /**
+     * Get all unpaid charges
+     */
+    suspend fun getAllUnpaidCharges(limit: Int = 100): Result<List<ParkingCharge>> = runCatching {
+        firestore.collection(chargesCollection)
+            .whereEqualTo("isPaid", false)
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(limit.toLong())
+            .get()
+            .await()
+            .toObjects(ParkingCharge::class.java)
+    }
+
+    /**
+     * Get payment confirmations for a driver
+     */
+    suspend fun getDriverPaymentConfirmations(driverId: String): Result<List<PaymentConfirmation>> = runCatching {
+        firestore.collection(paymentConfirmationsCollection)
+            .whereEqualTo("driverId", driverId)
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .get()
+            .await()
+            .toObjects(PaymentConfirmation::class.java)
+    }
+
+    /**
+     * Create tier upgrade record
+     */
+    suspend fun createTierUpgradeRecord(
+        driverId: String,
+        driverEmail: String,
+        driverName: String,
+        fromTier: String,
+        toTier: String,
+        upgradeFee: Double,
+        adminId: String,
+        adminName: String
+    ): Result<TierUpgradeRecord> = runCatching {
+        val record = TierUpgradeRecord(
+            id = UUID.randomUUID().toString(),
+            driverId = driverId,
+            driverEmail = driverEmail,
+            driverName = driverName,
+            fromTier = fromTier,
+            toTier = toTier,
+            upgradeFee = upgradeFee,
+            isPaid = false,
+            processedByAdminId = adminId,
+            processedByAdminName = adminName
+        )
+
+        firestore.collection(tierUpgradeRecordsCollection)
+            .document(record.id)
+            .set(record)
+            .await()
+
+        record
+    }
+
+    /**
+     * Confirm tier upgrade payment and activate the tier
+     */
+    suspend fun confirmTierUpgradePayment(
+        upgradeRecordId: String,
+        adminId: String,
+        adminName: String,
+        paymentMethod: String = "CASH",
+        notes: String = ""
+    ): Result<PaymentConfirmation> = runCatching {
+        // Get the upgrade record
+        val recordDoc = firestore.collection(tierUpgradeRecordsCollection)
+            .document(upgradeRecordId)
+            .get()
+            .await()
+        val record = recordDoc.toObject(TierUpgradeRecord::class.java)
+            ?: throw Exception("Tier upgrade record not found")
+
+        // Create payment confirmation
+        val confirmation = PaymentConfirmation(
+            id = UUID.randomUUID().toString(),
+            driverId = record.driverId,
+            amount = record.upgradeFee,
+            paymentMethod = paymentMethod,
+            paymentType = "TIER_UPGRADE",
+            confirmedByAdminId = adminId,
+            confirmedByAdminName = adminName,
+            notes = notes
+        )
+
+        // Save payment confirmation
+        firestore.collection(paymentConfirmationsCollection)
+            .document(confirmation.id)
+            .set(confirmation)
+            .await()
+
+        // Update upgrade record
+        firestore.collection(tierUpgradeRecordsCollection)
+            .document(upgradeRecordId)
+            .update(mapOf(
+                "isPaid" to true,
+                "paymentConfirmationId" to confirmation.id,
+                "processedAt" to Timestamp.now()
+            ))
+            .await()
+
+        confirmation
+    }
+
+    /**
+     * Get tier upgrade records for a driver
+     */
+    suspend fun getDriverTierUpgradeRecords(driverId: String): Result<List<TierUpgradeRecord>> = runCatching {
+        firestore.collection(tierUpgradeRecordsCollection)
+            .whereEqualTo("driverId", driverId)
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .get()
+            .await()
+            .toObjects(TierUpgradeRecord::class.java)
+    }
+
+    /**
+     * Get pending tier upgrades
+     */
+    suspend fun getPendingTierUpgrades(): Result<List<TierUpgradeRecord>> = runCatching {
+        firestore.collection(tierUpgradeRecordsCollection)
+            .whereEqualTo("isPaid", false)
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .get()
+            .await()
+            .toObjects(TierUpgradeRecord::class.java)
     }
 }
