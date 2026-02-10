@@ -41,6 +41,11 @@ fun SecurityProfileScreen(
 val user by authViewModel.currentUser.collectAsState()
     val context = LocalContext.current
     val currentUser = user // Create local variable for smart cast
+
+    // Refresh user data when screen is displayed
+    LaunchedEffect(Unit) {
+        authViewModel.refreshCurrentUser()
+    }
     
     // Gate assignment dialog state
     var showGateDialog by remember { mutableStateOf(false) }

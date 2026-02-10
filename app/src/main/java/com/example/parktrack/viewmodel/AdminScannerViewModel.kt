@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.parktrack.data.model.ParkingSession
 import com.example.parktrack.data.model.QRCodeData
 import com.example.parktrack.data.model.User
+import com.example.parktrack.data.repository.AuthRepository
 import com.example.parktrack.data.repository.ParkingSessionRepository
 import com.example.parktrack.utils.QRCodeValidator
 import com.example.parktrack.utils.ValidationResult
@@ -32,7 +33,8 @@ enum class ScanState {
 
 @HiltViewModel
 class AdminScannerViewModel @Inject constructor(
-    private val parkingSessionRepository: ParkingSessionRepository
+    private val parkingSessionRepository: ParkingSessionRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
     
     private val firestore = Firebase.firestore
@@ -270,11 +272,13 @@ class AdminScannerViewModel @Inject constructor(
             
             val result = parkingSessionRepository.createSession(session)
             
-            if (result.isSuccess) {
+if (result.isSuccess) {
                 _scanState.value = ScanState.SUCCESS
                 _scanResultMessage.value = "Entry recorded for ${driver.fullName}"
                 // Fetch updated scans asynchronously (don't wait for it)
                 fetchRecentScans()
+                // Increment admin's scan count
+                incrementAdminScanCount()
             } else {
                 val error = result.exceptionOrNull()
                 _scanState.value = ScanState.ERROR
@@ -299,25 +303,27 @@ class AdminScannerViewModel @Inject constructor(
             val exitTime = Timestamp.now()
             val result = parkingSessionRepository.completeSession(activeSession.id, exitTime)
             
-            if (result.isSuccess) {
+if (result.isSuccess) {
                 val duration = if (activeSession.entryTime != null) {
                     parkingSessionRepository.calculateDuration(
-                        activeSession.entryTime, 
+                        activeSession.entryTime,
                         exitTime
                     )
                 } else {
                     0L
                 }
-                
+
                 val hours = duration / 60
                 val minutes = duration % 60
                 val durationStr = if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
-                
+
                 _scanState.value = ScanState.SUCCESS
                 _scanResultMessage.value = "Exit recorded. Duration: $durationStr"
-                
+
                 // Update recent scans
                 fetchRecentScans()
+                // Increment admin's scan count
+                incrementAdminScanCount()
             } else {
                 val error = result.exceptionOrNull()
                 _scanState.value = ScanState.ERROR
@@ -387,10 +393,27 @@ class AdminScannerViewModel @Inject constructor(
         isProcessing = false
     }
     
-    override fun onCleared() {
+override fun onCleared() {
         super.onCleared()
         // Clear debounce records when ViewModel is destroyed
         ScanDebounceManager.clearAll()
+    }
+
+    /**
+     * Increment the admin's scan count (totalScans and scansToday)
+     */
+    private fun incrementAdminScanCount() {
+        viewModelScope.launch {
+            try {
+                val adminId = auth.currentUser?.uid
+                if (adminId != null) {
+                    authRepository.incrementScanCount(adminId)
+                }
+            } catch (e: Exception) {
+                // Silent fail - don't block scan flow for stats update
+                e.printStackTrace()
+            }
+        }
     }
     
     /**

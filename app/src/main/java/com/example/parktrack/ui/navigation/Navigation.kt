@@ -13,8 +13,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.parktrack.ui.admin.AdminBillingManagementScreen
 import com.example.parktrack.ui.admin.AdminDashboard
-import com.example.parktrack.ui.admin.AdminQRHistoryScreen
 import com.example.parktrack.ui.admin.QRScannerScreen
+import com.example.parktrack.ui.admin.RateConfigurationScreen
 import com.example.parktrack.ui.admin.SecurityProfileScreen
 import com.example.parktrack.ui.auth.LoginScreen
 import com.example.parktrack.ui.auth.RegisterScreen
@@ -51,7 +51,7 @@ sealed class Screen(val route: String) {
     object ParkingLotManagement : Screen("parking_lot_management")
     object PricingInfo : Screen("pricing_info")
     object AdminBillingManagement : Screen("admin_billing_management")
-    object AdminQRHistory : Screen("admin_qr_history")
+    object RateConfiguration : Screen("rate_configuration")
 }
 
 
@@ -193,8 +193,7 @@ fun ParkTrackNavHost(
                 onNavigateToProfile = { navController.navigate(Screen.SecurityProfile.route) },
                 onNavigateToReports = { navController.navigate(Screen.Reports.route) },
                 onAddParkingLot = { navController.navigate(Screen.ParkingLotManagement.route) },
-                onNavigateToBillingManagement = { navController.navigate(Screen.AdminBillingManagement.route) },
-                onNavigateToQRHistory = { navController.navigate(Screen.AdminQRHistory.route) }
+                onNavigateToBillingManagement = { navController.navigate(Screen.AdminBillingManagement.route) }
             )
         }
         composable(Screen.QRScanner.route) {
@@ -309,11 +308,13 @@ fun ParkTrackNavHost(
 
         composable(Screen.AdminBillingManagement.route) {
             AdminBillingManagementScreen(
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onNavigateToRateConfiguration = { navController.navigate(Screen.RateConfiguration.route) }
             )
         }
-        composable(Screen.AdminQRHistory.route) {
-            AdminQRHistoryScreen(
+
+        composable(Screen.RateConfiguration.route) {
+            RateConfigurationScreen(
                 onBackClick = { navController.popBackStack() }
             )
         }

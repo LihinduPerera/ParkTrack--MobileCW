@@ -38,6 +38,7 @@ import java.util.Locale
 @Composable
 fun AdminBillingManagementScreen(
     onBackClick: () -> Unit,
+    onNavigateToRateConfiguration: () -> Unit = {},
     viewModel: AdminBillingViewModel = hiltViewModel()
 ) {
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
@@ -99,15 +100,30 @@ fun AdminBillingManagementScreen(
                 }
                 else -> {
                     // Show search interface
-                    DriverSearchInterface(
-                        searchQuery = searchQuery,
-                        searchResults = searchResults,
-                        isLoading = isLoading,
-                        onSearchQueryChange = { viewModel.searchDrivers(it) },
-                        onDriverSelected = { driver ->
-                            viewModel.loadDriverBillingInfo(driver)
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // Rate Configuration Button
+                        OutlinedButton(
+                            onClick = onNavigateToRateConfiguration,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Settings, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Configure Parking Rates")
                         }
-                    )
+
+                        DriverSearchInterface(
+                            searchQuery = searchQuery,
+                            searchResults = searchResults,
+                            isLoading = isLoading,
+                            onSearchQueryChange = { viewModel.searchDrivers(it) },
+                            onDriverSelected = { driver ->
+                                viewModel.loadDriverBillingInfo(driver)
+                            }
+                        )
+                    }
                 }
             }
         }

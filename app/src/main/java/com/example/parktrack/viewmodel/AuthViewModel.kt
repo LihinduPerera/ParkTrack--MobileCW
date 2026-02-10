@@ -259,6 +259,25 @@ fun updateProfileImage(uri: android.net.Uri, onSuccess: () -> Unit) {
         }
     }
 
+/**
+     * Refresh current user data from Firestore
+     */
+    fun refreshCurrentUser() {
+        viewModelScope.launch {
+            try {
+                val userId = _currentUser.value?.id
+                if (userId != null) {
+                    val userData = authRepository.getUserData(userId)
+                    if (userData.isSuccess) {
+                        _currentUser.value = userData.getOrNull()
+                    }
+                }
+            } catch (e: Exception) {
+                // Handle error silently
+            }
+        }
+    }
+
     /**
      * Update user's full name
      */

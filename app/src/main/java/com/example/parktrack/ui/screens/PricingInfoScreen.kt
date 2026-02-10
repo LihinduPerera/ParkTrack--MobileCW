@@ -141,7 +141,7 @@ private fun NormalTierCard(
             )
 
             Text(
-                text = "Rs. ${rates?.normalRate ?: "10.0"}/hour",
+                text = "Rs. ${rates?.normalRate ?: "100"}/hour",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -227,7 +227,7 @@ private fun GoldTierCard(
             )
 
             Text(
-                text = "Rs. ${rates?.goldRate ?: "8.0"}/hour",
+                text = "Rs. ${rates?.goldRate ?: "80"}/hour",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFFB8860B)
@@ -313,7 +313,7 @@ private fun PlatinumTierCard(
             )
 
             Text(
-                text = "Rs. ${rates?.platinumRate ?: "6.0"}/hour",
+                text = "Rs. ${rates?.platinumRate ?: "60"}/hour",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF708090)
