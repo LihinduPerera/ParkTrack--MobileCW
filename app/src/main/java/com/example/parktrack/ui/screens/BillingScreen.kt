@@ -91,11 +91,11 @@ fun BillingScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // User Tier Card
+            // Compact User Tier Card
             if (!isUserLoading && currentUser != null) {
                 UserTierCard(
                     tier = currentUser!!.subscriptionTier,
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     onViewPricing = onViewPricing
                 )
             }
@@ -105,37 +105,34 @@ fun BillingScreen(
                 PaymentSummaryCards(
                     paidCount = paidCharges.size,
                     unpaidCount = unpaidCharges.size,
-                    overdueCount = overdueCharges.size,
-                    totalUnpaidAmount = unpaidCharges.sumOf { it.finalCharge } + overdueCharges.sumOf { it.finalCharge + it.overdueCharge }
+                    overdueCount = overdueCharges.size
                 )
             }
 
-            // Current Invoice Card
-            if (!isLoading && currentInvoice != null) {
-                CurrentInvoiceCard(currentInvoice!!)
-            }
-
-            // Tab bar
-            TabRow(selectedTabIndex = selectedTabIndex, modifier = Modifier.fillMaxWidth()) {
+            // Compact Tab bar with 4 tabs
+            TabRow(
+                selectedTabIndex = selectedTabIndex, 
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Tab(
                     selected = selectedTabIndex == 0,
                     onClick = { selectedTabIndex = 0 },
-                    text = { Text("All Invoices") }
+                    text = { Text("All", style = MaterialTheme.typography.labelSmall) }
                 )
                 Tab(
                     selected = selectedTabIndex == 1,
                     onClick = { selectedTabIndex = 1 },
-                    text = { Text("Paid (${paidCharges.size})") }
+                    text = { Text("Paid (${paidCharges.size})", style = MaterialTheme.typography.labelSmall) }
                 )
                 Tab(
                     selected = selectedTabIndex == 2,
                     onClick = { selectedTabIndex = 2 },
-                    text = { Text("Unpaid (${unpaidCharges.size})") }
+                    text = { Text("Unpaid (${unpaidCharges.size})", style = MaterialTheme.typography.labelSmall) }
                 )
                 Tab(
                     selected = selectedTabIndex == 3,
                     onClick = { selectedTabIndex = 3 },
-                    text = { Text("Overdue (${overdueCharges.size + overdueInvoices.size})") }
+                    text = { Text("Overdue (${overdueCharges.size})", style = MaterialTheme.typography.labelSmall) }
                 )
             }
 
@@ -168,63 +165,6 @@ fun BillingScreen(
 }
 
 @Composable
-private fun CurrentInvoiceCard(invoice: Invoice) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (invoice.paymentStatus == "PAID") Color(0xFF4CAF50) else Color(0xFFFF9800)
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
-        ) {
-            Text(
-                text = "Current Month (${invoice.month})",
-                style = MaterialTheme.typography.labelMedium,
-                color = Color.White
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Rs. ${String.format(Locale.getDefault(), "%.2f", invoice.netAmount)}",
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Column {
-                    Text("Sessions", style = MaterialTheme.typography.labelSmall, color = Color.White)
-                    Text("${invoice.totalSessions}", style = MaterialTheme.typography.bodyMedium, color = Color.White)
-                }
-                Column {
-                    Text("Status", style = MaterialTheme.typography.labelSmall, color = Color.White)
-                    Text(
-                        invoice.paymentStatus,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White
-                    )
-                }
-                Column {
-                    Text("Balance", style = MaterialTheme.typography.labelSmall, color = Color.White)
-                    Text(
-                        "Rs. ${String.format(Locale.getDefault(), "%.2f", invoice.balanceDue)}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun AllInvoicesTab(invoices: List<Invoice>) {
     if (invoices.isEmpty()) {
         Box(
@@ -237,8 +177,8 @@ private fun AllInvoicesTab(invoices: List<Invoice>) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(invoices) { invoice ->
                 InvoiceItemCard(invoice)
@@ -260,8 +200,8 @@ private fun UnpaidChargesTab(charges: List<ParkingCharge>) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(charges) { charge ->
                 ChargeItemCard(charge)
@@ -283,8 +223,8 @@ private fun PaidChargesTab(charges: List<ParkingCharge>) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(charges) { charge ->
                 PaidChargeCard(charge)
@@ -309,8 +249,8 @@ private fun OverdueTab(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // Show overdue charges first
             items(overdueCharges) { charge ->
@@ -327,42 +267,37 @@ private fun OverdueTab(
 @Composable
 private fun InvoiceItemCard(invoice: Invoice) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Column {
+                Text(
+                    text = invoice.month,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${invoice.totalSessions} sessions",
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+            Column(
+                horizontalAlignment = Alignment.End
             ) {
-                Column {
-                    Text(
-                        text = invoice.month,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "${invoice.totalSessions} sessions",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                Column(
-                    horizontalAlignment = Alignment.End
-                ) {
-                    Text(
-                        text = "Rs. ${String.format(Locale.getDefault(), "%.2f", invoice.netAmount)}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = invoice.paymentStatus,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (invoice.isPaid) Color.Green else Color.Red
-                    )
-                }
+                Text(
+                    text = "Rs. ${String.format(Locale.getDefault(), "%.2f", invoice.netAmount)}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = invoice.paymentStatus,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (invoice.isPaid) Color(0xFF2E7D32) else Color.Red
+                )
             }
         }
     }
@@ -371,47 +306,43 @@ private fun InvoiceItemCard(invoice: Invoice) {
 @Composable
 private fun ChargeItemCard(charge: ParkingCharge) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = charge.parkingLotName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = charge.vehicleNumber,
+                    style = MaterialTheme.typography.labelSmall
+                )
+                val dateFormat = SimpleDateFormat("dd MMM", Locale.getDefault())
+                Text(
+                    text = dateFormat.format(charge.entryTime?.toDate() ?: Date()),
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+            Column(
+                horizontalAlignment = Alignment.End
             ) {
-                Column {
-                    Text(
-                        text = charge.parkingLotName,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = charge.vehicleNumber,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    val dateFormat = SimpleDateFormat("dd MMM yyyy HH:mm", Locale.getDefault())
-                    Text(
-                        text = dateFormat.format(charge.entryTime?.toDate() ?: Date()),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                Column(
-                    horizontalAlignment = Alignment.End
-                ) {
-                    Text(
-                        text = "Rs. ${String.format(Locale.getDefault(), "%.2f", charge.finalCharge)}",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    val hours = (charge.durationMinutes / 60).toInt()
-                    val mins = (charge.durationMinutes % 60).toInt()
-                    Text(
-                        text = "${hours}h ${mins}m",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
+                Text(
+                    text = "Rs. ${String.format(Locale.getDefault(), "%.2f", charge.finalCharge)}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                val hours = (charge.durationMinutes / 60).toInt()
+                val mins = (charge.durationMinutes % 60).toInt()
+                Text(
+                    text = "${hours}h ${mins}m",
+                    style = MaterialTheme.typography.labelSmall
+                )
             }
         }
     }
@@ -425,59 +356,50 @@ private fun PaidChargeCard(charge: ParkingCharge) {
             containerColor = Color(0xFFE8F5E8)
         )
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = charge.parkingLotName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = charge.vehicleNumber,
+                    style = MaterialTheme.typography.labelSmall
+                )
+                val dateFormat = SimpleDateFormat("dd MMM", Locale.getDefault())
+                Text(
+                    text = dateFormat.format(charge.entryTime?.toDate() ?: Date()),
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+            Column(
+                horizontalAlignment = Alignment.End
             ) {
-                Column {
-                    Text(
-                        text = charge.parkingLotName,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = charge.vehicleNumber,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    val dateFormat = SimpleDateFormat("dd MMM yyyy HH:mm", Locale.getDefault())
-                    Text(
-                        text = dateFormat.format(charge.entryTime?.toDate() ?: Date()),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Text(
-                        text = "Paid: ${charge.paymentMethod}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF2E7D32)
-                    )
-                }
-                Column(
-                    horizontalAlignment = Alignment.End
-                ) {
-                    Text(
-                        text = "Rs. ${String.format(Locale.getDefault(), "%.2f", charge.finalCharge)}",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF2E7D32)
-                    )
-                    val hours = (charge.durationMinutes / 60).toInt()
-                    val mins = (charge.durationMinutes % 60).toInt()
-                    Text(
-                        text = "${hours}h ${mins}m",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Text(
-                        text = "✓ PAID",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF2E7D32),
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Text(
+                    text = "Rs. ${String.format(Locale.getDefault(), "%.2f", charge.finalCharge)}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF2E7D32)
+                )
+                val hours = (charge.durationMinutes / 60).toInt()
+                val mins = (charge.durationMinutes % 60).toInt()
+                Text(
+                    text = "${hours}h ${mins}m",
+                    style = MaterialTheme.typography.labelSmall
+                )
+                Text(
+                    text = "PAID",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF2E7D32),
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
@@ -491,61 +413,45 @@ private fun OverdueChargeCard(charge: ParkingCharge) {
             containerColor = Color(0xFFFFEBEE)
         )
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = charge.parkingLotName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = charge.vehicleNumber,
+                    style = MaterialTheme.typography.labelSmall
+                )
+                val dateFormat = SimpleDateFormat("dd MMM", Locale.getDefault())
+                Text(
+                    text = "${dateFormat.format(charge.entryTime?.toDate() ?: Date())} • ${charge.overdueDays}d overdue",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.Red
+                )
+            }
+            Column(
+                horizontalAlignment = Alignment.End
             ) {
-                Column {
-                    Text(
-                        text = charge.parkingLotName,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = charge.vehicleNumber,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
-                    Text(
-                        text = dateFormat.format(charge.entryTime?.toDate() ?: Date()),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Text(
-                        text = "OVERDUE - ${charge.overdueDays} days",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.Red,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Column(
-                    horizontalAlignment = Alignment.End
-                ) {
-                    Text(
-                        text = "Rs. ${String.format(Locale.getDefault(), "%.2f", charge.finalCharge + charge.overdueCharge)}",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Red
-                    )
-                    if (charge.overdueCharge > 0) {
-                        Text(
-                            text = "+ Rs. ${String.format(Locale.getDefault(), "%.2f", charge.overdueCharge)} overdue",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.Red
-                        )
-                    }
-                    val hours = (charge.durationMinutes / 60).toInt()
-                    val mins = (charge.durationMinutes % 60).toInt()
-                    Text(
-                        text = "${hours}h ${mins}m",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
+                Text(
+                    text = "Rs. ${String.format(Locale.getDefault(), "%.2f", charge.finalCharge + charge.overdueCharge)}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Red
+                )
+                val hours = (charge.durationMinutes / 60).toInt()
+                val mins = (charge.durationMinutes % 60).toInt()
+                Text(
+                    text = "${hours}h ${mins}m",
+                    style = MaterialTheme.typography.labelSmall
+                )
             }
         }
     }
@@ -559,40 +465,35 @@ private fun OverdueInvoiceCard(invoice: Invoice) {
             containerColor = Color(0xFFFFEBEE)
         )
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = invoice.month,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${invoice.totalSessions} sessions • OVERDUE",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.Red,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Column(
+                horizontalAlignment = Alignment.End
             ) {
-                Column {
-                    Text(
-                        text = invoice.month,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "${invoice.totalSessions} sessions • INVOICE OVERDUE",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Color.Red,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Column(
-                    horizontalAlignment = Alignment.End
-                ) {
-                    Text(
-                        text = "Rs. ${String.format(Locale.getDefault(), "%.2f", invoice.balanceDue)}",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.Red,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Text(
+                    text = "Rs. ${String.format(Locale.getDefault(), "%.2f", invoice.balanceDue)}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.Red,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
@@ -602,14 +503,13 @@ private fun OverdueInvoiceCard(invoice: Invoice) {
 private fun PaymentSummaryCards(
     paidCount: Int,
     unpaidCount: Int,
-    overdueCount: Int,
-    totalUnpaidAmount: Double
+    overdueCount: Int
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         // Paid Card
         Card(
@@ -619,18 +519,18 @@ private fun PaymentSummaryCards(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp),
+                    .padding(vertical = 8.dp, horizontal = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
                     text = paidCount.toString(),
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF2E7D32)
                 )
                 Text(
                     text = "Paid",
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelSmall,
                     color = Color(0xFF2E7D32)
                 )
             }
@@ -644,18 +544,18 @@ private fun PaymentSummaryCards(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp),
+                    .padding(vertical = 8.dp, horizontal = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
                     text = unpaidCount.toString(),
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFFE65100)
                 )
                 Text(
                     text = "Unpaid",
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelSmall,
                     color = Color(0xFFE65100)
                 )
             }
@@ -669,49 +569,19 @@ private fun PaymentSummaryCards(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp),
+                    .padding(vertical = 8.dp, horizontal = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
                     text = overdueCount.toString(),
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = Color.Red
                 )
                 Text(
                     text = "Overdue",
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelSmall,
                     color = Color.Red
-                )
-            }
-        }
-    }
-
-    // Total Unpaid Amount
-    if (totalUnpaidAmount > 0) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1))
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Total Amount Due",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "Rs. ${String.format(Locale.getDefault(), "%.2f", totalUnpaidAmount)}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFE65100)
                 )
             }
         }

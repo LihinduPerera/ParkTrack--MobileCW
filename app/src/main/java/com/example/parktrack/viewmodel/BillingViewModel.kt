@@ -123,10 +123,23 @@ class BillingViewModel @Inject constructor(
                 val allChargesResult = billingRepository.getAllDriverCharges(driverId)
                 val allCharges = allChargesResult.getOrNull() ?: emptyList()
                 
+                // Check and update overdue status for each unpaid charge
+                allCharges.filter { !it.isPaid && it.finalCharge > 0 }.forEach { charge ->
+                    if (charge.shouldBeOverdue() && !charge.isOverdue) {
+                        // Mark as overdue in repository
+                        val daysSince = calculateDaysSinceSession(charge)
+                        billingRepository.markChargeAsOverdue(charge.id, daysSince)
+                    }
+                }
+                
+                // Reload charges to get updated overdue status
+                val updatedChargesResult = billingRepository.getAllDriverCharges(driverId)
+                val updatedCharges = updatedChargesResult.getOrNull() ?: allCharges
+                
                 // Categorize by payment status
-                _paidCharges.value = allCharges.filter { it.isPaid }
-                _unpaidCharges.value = allCharges.filter { !it.isPaid && !it.isOverdue && it.finalCharge > 0 }
-                _overdueCharges.value = allCharges.filter { it.isOverdue }
+                _paidCharges.value = updatedCharges.filter { it.isPaid }
+                _unpaidCharges.value = updatedCharges.filter { !it.isPaid && !it.isOverdue && it.finalCharge > 0 }
+                _overdueCharges.value = updatedCharges.filter { it.isOverdue && !it.isPaid }
                 
                 _isLoading.value = false
             } catch (e: Exception) {
@@ -137,16 +150,42 @@ class BillingViewModel @Inject constructor(
     }
     
     /**
-     * Observe all charges for a driver in real-time
+     * Calculate days since parking session ended
+     */
+    private fun calculateDaysSinceSession(charge: ParkingCharge): Int {
+        val now = System.currentTimeMillis()
+        val sessionEndTime = charge.exitTime?.toDate()?.time ?: charge.entryTime?.toDate()?.time ?: now
+        return ((now - sessionEndTime) / (24 * 60 * 60 * 1000)).toInt()
+    }
+    
+    /**
+     * FIXED: Observe all charges for a driver in real-time
+     * Properly categorizes charges and detects overdue status
      */
     fun observeAllCharges(driverId: String) {
         viewModelScope.launch {
             try {
                 billingRepository.observeDriverCharges(driverId).collectLatest { charges ->
+                    // Check for overdue charges
+                    val now = System.currentTimeMillis()
+                    charges.filter { !it.isPaid && it.finalCharge > 0 && !it.isOverdue }.forEach { charge ->
+                        val sessionEndTime = charge.exitTime?.toDate()?.time ?: charge.entryTime?.toDate()?.time ?: now
+                        val daysSince = ((now - sessionEndTime) / (24 * 60 * 60 * 1000)).toInt()
+                        
+                        if (daysSince >= 7) {
+                            // Mark as overdue
+                            viewModelScope.launch {
+                                billingRepository.markChargeAsOverdue(charge.id, daysSince)
+                            }
+                        }
+                    }
+                    
                     // Categorize by payment status in real-time
                     _paidCharges.value = charges.filter { it.isPaid }
                     _unpaidCharges.value = charges.filter { !it.isPaid && !it.isOverdue && it.finalCharge > 0 }
-                    _overdueCharges.value = charges.filter { it.isOverdue }
+                    _overdueCharges.value = charges.filter { it.isOverdue && !it.isPaid }
+                    
+                    println("Billing data updated - Paid: ${_paidCharges.value.size}, Unpaid: ${_unpaidCharges.value.size}, Overdue: ${_overdueCharges.value.size}")
                 }
             } catch (e: Exception) {
                 _errorMessage.value = e.message ?: "Failed to observe charges"

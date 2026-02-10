@@ -391,6 +391,8 @@ private fun DriverBillingDetails(
     val driver = driverInfo.user
     val invoices = driverInfo.invoices
     val unpaidCharges = driverInfo.unpaidCharges
+    val overdueCharges = driverInfo.overdueCharges
+    val paidCharges = driverInfo.paidCharges
 
     Column(
         modifier = Modifier
@@ -401,6 +403,13 @@ private fun DriverBillingDetails(
         // Driver Info Card
         DriverInfoCard(driver = driver)
 
+        // Payment Summary Card
+        PaymentSummaryCard(
+            paidCount = paidCharges.size,
+            unpaidCount = unpaidCharges.size,
+            overdueCount = overdueCharges.size
+        )
+
         // Action Buttons
         ActionButtonsCard(
             driver = driver,
@@ -408,7 +417,16 @@ private fun DriverBillingDetails(
             onUpgradeTier = { onUpgradeTier(driver, driver.subscriptionTier) }
         )
 
-        // Pending Payments Section
+        // Overdue Charges Section (Show first as they are most urgent)
+        if (overdueCharges.isNotEmpty()) {
+            OverdueChargesSection(
+                charges = overdueCharges,
+                isProcessingPayment = isProcessingPayment,
+                onConfirmPayment = onConfirmChargePayment
+            )
+        }
+
+        // Pending/Unpaid Charges Section
         if (unpaidCharges.isNotEmpty()) {
             PendingChargesSection(
                 charges = unpaidCharges,
@@ -426,7 +444,7 @@ private fun DriverBillingDetails(
             )
         }
 
-        if (unpaidCharges.isEmpty() && invoices.isEmpty()) {
+        if (unpaidCharges.isEmpty() && overdueCharges.isEmpty() && invoices.isEmpty()) {
             NoPaymentsCard()
         }
 
@@ -438,6 +456,89 @@ private fun DriverBillingDetails(
             Icon(Icons.Default.Refresh, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
             Text("Refresh Data")
+        }
+    }
+}
+
+@Composable
+private fun PaymentSummaryCard(
+    paidCount: Int,
+    unpaidCount: Int,
+    overdueCount: Int
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Payment Summary",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                // Paid
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = paidCount.toString(),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF4CAF50)
+                    )
+                    Text(
+                        text = "Paid",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                
+                // Unpaid
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = unpaidCount.toString(),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFFF9800)
+                    )
+                    Text(
+                        text = "Unpaid",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                
+                // Overdue
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = overdueCount.toString(),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Red
+                    )
+                    Text(
+                        text = "Overdue",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
 }
@@ -606,6 +707,144 @@ private fun PendingChargesSection(
                     isProcessingPayment = isProcessingPayment,
                     onConfirmPayment = { onConfirmPayment(charge) }
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OverdueChargesSection(
+    charges: List<ParkingCharge>,
+    isProcessingPayment: Boolean,
+    onConfirmPayment: (ParkingCharge) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFFFEBEE) // Light red background
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "OVERDUE CHARGES",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Red
+                )
+                Badge(
+                    containerColor = Color.Red
+                ) {
+                    Text("${charges.size}")
+                }
+            }
+
+            charges.forEach { charge ->
+                OverdueChargeItem(
+                    charge = charge,
+                    isProcessingPayment = isProcessingPayment,
+                    onConfirmPayment = { onConfirmPayment(charge) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OverdueChargeItem(
+    charge: ParkingCharge,
+    isProcessingPayment: Boolean,
+    onConfirmPayment: () -> Unit
+) {
+    val dateFormat = SimpleDateFormat("dd MMM yyyy HH:mm", Locale.getDefault())
+    val totalAmount = charge.finalCharge + charge.overdueCharge
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.Red.copy(alpha = 0.1f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = charge.parkingLotName,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Vehicle: ${charge.vehicleNumber}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    text = "Entry: ${charge.entryTime?.let { dateFormat.format(it.toDate()) } ?: "N/A"}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                val hours = (charge.durationMinutes / 60).toInt()
+                val mins = (charge.durationMinutes % 60).toInt()
+                Text(
+                    text = "Duration: ${hours}h ${mins}m",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    text = "OVERDUE: ${charge.overdueDays} days",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.Red,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Rs. ${String.format("%.2f", totalAmount)}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Red
+                )
+                
+                if (charge.overdueCharge > 0) {
+                    Text(
+                        text = "+Rs. ${String.format("%.2f", charge.overdueCharge)} penalty",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.Red
+                    )
+                }
+
+                Button(
+                    onClick = onConfirmPayment,
+                    enabled = !isProcessingPayment,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Red
+                    )
+                ) {
+                    if (isProcessingPayment) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text("Pay Now")
+                    }
+                }
             }
         }
     }

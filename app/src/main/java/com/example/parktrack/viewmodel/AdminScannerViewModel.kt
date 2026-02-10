@@ -699,7 +699,8 @@ class AdminScannerViewModel @Inject constructor(
     }
     
     /**
-     * Mark current charge as paid (admin collection)
+     * FIXED: Mark current charge as paid (admin collection)
+     * Now properly updates charge status and generates invoice
      */
     fun markChargeAsPaid(paymentMethod: String = "CASH") {
         viewModelScope.launch {
@@ -707,50 +708,133 @@ class AdminScannerViewModel @Inject constructor(
                 val charge = _currentParkingCharge.value
                 val admin = _currentAdmin.value
                 
-                if (charge != null && admin != null) {
-                    val result = billingRepository.confirmChargePayment(
-                        chargeId = charge.id,
-                        adminId = admin.id,
-                        adminName = admin.fullName,
-                        paymentMethod = paymentMethod
-                    )
-                    
-                    if (result.isSuccess) {
-                        _currentParkingCharge.value = charge.copy(
-                            isPaid = true,
-                            paymentMethod = paymentMethod,
-                            paymentConfirmedBy = admin.id,
-                            paymentConfirmedByName = admin.fullName
-                        )
-                        
-                        // Update scan result details to reflect payment
-                        _scanResultDetails.value = _scanResultDetails.value?.copy(
-                            isPaid = true,
-                            paymentStatus = "PAID"
-                        )
-                        
-                        _scanResultMessage.value = "Payment collected: ${charge.getFormattedAmount()}"
-                        
-                        // Add a small delay to ensure Firestore updates propagate
-                        kotlinx.coroutines.delay(1000)
-                        
-                        // Refresh driver charges to update billing views
-                        try {
-                            billingRepository.getAllDriverCharges(charge.driverId).getOrNull()?.let { charges ->
-                                // This will trigger the flow to update the billing screens
-                                println("Successfully refreshed ${charges.size} charges for driver ${charge.driverId}")
-                            }
-                        } catch (e: Exception) {
-                            println("Warning: Could not refresh charges after payment: ${e.message}")
-                        }
-                    } else {
-                        _scanResultMessage.value = "Failed to record payment: ${result.exceptionOrNull()?.message}"
-                    }
+                if (charge == null) {
+                    _scanResultMessage.value = "Error: No charge found to mark as paid"
+                    return@launch
                 }
+                
+                if (admin == null) {
+                    _scanResultMessage.value = "Error: Admin not authenticated"
+                    return@launch
+                }
+                
+                // Step 1: Confirm the charge payment with admin tracking
+                val confirmationResult = billingRepository.confirmChargePayment(
+                    chargeId = charge.id,
+                    adminId = admin.id,
+                    adminName = admin.fullName,
+                    paymentMethod = paymentMethod
+                )
+                
+                if (confirmationResult.isFailure) {
+                    _scanResultMessage.value = "Failed to record payment: ${confirmationResult.exceptionOrNull()?.message}"
+                    return@launch
+                }
+                
+                // Step 2: Update local state to reflect payment
+                val updatedCharge = charge.copy(
+                    isPaid = true,
+                    paymentMethod = paymentMethod,
+                    paymentConfirmedBy = admin.id,
+                    paymentConfirmedByName = admin.fullName
+                )
+                _currentParkingCharge.value = updatedCharge
+                
+                // Update scan result details to reflect payment
+                _scanResultDetails.value = _scanResultDetails.value?.copy(
+                    isPaid = true,
+                    paymentStatus = "PAID"
+                )
+                
+                _scanResultMessage.value = "Payment collected: ${charge.getFormattedAmount()}"
+                
+                // Step 3: Generate invoice for this payment
+                generateInvoiceForCharge(updatedCharge)
+                
+                // Step 4: Force refresh billing data to ensure UI updates
+                kotlinx.coroutines.delay(500) // Brief delay for Firestore
+                
+                // Refresh driver charges to update billing views
+                try {
+                    val refreshedCharges = billingRepository.getAllDriverCharges(charge.driverId).getOrNull()
+                    if (refreshedCharges != null) {
+                        println("Successfully refreshed ${refreshedCharges.size} charges for driver ${charge.driverId}")
+                        
+                        // Verify the charge is now marked as paid
+                        val paidCharge = refreshedCharges.find { it.id == charge.id }
+                        if (paidCharge != null && paidCharge.isPaid) {
+                            println("CONFIRMED: Charge ${charge.id} is now marked as PAID")
+                        } else {
+                            println("WARNING: Charge ${charge.id} may not be properly marked as paid")
+                        }
+                    }
+                } catch (e: Exception) {
+                    println("Warning: Could not refresh charges after payment: ${e.message}")
+                }
+                
             } catch (e: Exception) {
                 _scanResultMessage.value = "Failed to record payment: ${e.message}"
                 e.printStackTrace()
             }
+        }
+    }
+    
+    /**
+     * Generate invoice for a paid charge
+     */
+    private suspend fun generateInvoiceForCharge(charge: ParkingCharge) {
+        try {
+            // Get the month-year from the charge
+            val entryTime = charge.entryTime
+            if (entryTime == null) {
+                println("Warning: Cannot generate invoice - entry time is null")
+                return
+            }
+            
+            val calendar = java.util.Calendar.getInstance().apply {
+                time = entryTime.toDate()
+            }
+            val year = calendar.get(java.util.Calendar.YEAR)
+            val month = (calendar.get(java.util.Calendar.MONTH) + 1).toString().padStart(2, '0')
+            val yearMonth = "$year-$month"
+            
+            // Check if invoice already exists for this month
+            val existingInvoice = billingRepository.getInvoiceForMonth(charge.driverId, yearMonth).getOrNull()
+            
+            if (existingInvoice != null) {
+                // Update existing invoice with the new payment
+                val updatedAmountPaid = existingInvoice.amountPaid + charge.finalCharge
+                val newBalance = existingInvoice.netAmount - updatedAmountPaid
+                val isFullyPaid = newBalance <= 0
+                
+                billingRepository.updateInvoicePayment(
+                    invoiceId = existingInvoice.id,
+                    amountPaid = updatedAmountPaid,
+                    paymentStatus = if (isFullyPaid) "PAID" else "PARTIAL"
+                )
+                
+                println("Updated invoice ${existingInvoice.id} with payment of Rs. ${charge.finalCharge}")
+            } else {
+                // Create new invoice for this month
+                val invoiceResult = billingRepository.generateMonthlyInvoice(charge.driverId, yearMonth)
+                
+                if (invoiceResult.isSuccess) {
+                    val invoice = invoiceResult.getOrThrow()
+                    println("Generated new invoice ${invoice.id} for month $yearMonth")
+                    
+                    // Mark the invoice as paid since we're paying this charge
+                    billingRepository.updateInvoicePayment(
+                        invoiceId = invoice.id,
+                        amountPaid = charge.finalCharge,
+                        paymentStatus = "PAID"
+                    )
+                } else {
+                    println("Failed to generate invoice: ${invoiceResult.exceptionOrNull()?.message}")
+                }
+            }
+        } catch (e: Exception) {
+            println("Error generating invoice: ${e.message}")
+            e.printStackTrace()
         }
     }
     

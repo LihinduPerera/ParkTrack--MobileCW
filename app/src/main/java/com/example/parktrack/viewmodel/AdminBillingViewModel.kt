@@ -23,6 +23,8 @@ data class DriverBillingInfo(
     val user: User,
     val invoices: List<Invoice> = emptyList(),
     val unpaidCharges: List<ParkingCharge> = emptyList(),
+    val overdueCharges: List<ParkingCharge> = emptyList(),
+    val paidCharges: List<ParkingCharge> = emptyList(),
     val paymentConfirmations: List<PaymentConfirmation> = emptyList(),
     val tierUpgradeRecords: List<TierUpgradeRecord> = emptyList()
 )
@@ -116,6 +118,7 @@ class AdminBillingViewModel @Inject constructor(
 
     /**
      * Load complete billing information for a driver
+     * Includes proper categorization of unpaid, overdue, and paid charges
      */
     fun loadDriverBillingInfo(driver: User) {
         viewModelScope.launch {
@@ -125,17 +128,44 @@ class AdminBillingViewModel @Inject constructor(
             try {
                 // Load all billing data in parallel
                 val invoicesResult = billingRepository.getDriverInvoices(driver.id)
-                val unpaidChargesResult = billingRepository.getUnpaidCharges(driver.id)
+                val allChargesResult = billingRepository.getAllDriverCharges(driver.id)
                 val paymentConfirmationsResult = billingRepository.getDriverPaymentConfirmations(driver.id)
                 val tierUpgradeRecordsResult = billingRepository.getDriverTierUpgradeRecords(driver.id)
+
+                // Get all charges and categorize them
+                val allCharges = allChargesResult.getOrDefault(emptyList())
+                
+                // Check for overdue status and update if needed
+                val now = System.currentTimeMillis()
+                allCharges.filter { !it.isPaid && it.finalCharge > 0 && !it.isOverdue }.forEach { charge ->
+                    val sessionEndTime = charge.exitTime?.toDate()?.time ?: charge.entryTime?.toDate()?.time ?: now
+                    val daysSince = ((now - sessionEndTime) / (24 * 60 * 60 * 1000)).toInt()
+                    
+                    if (daysSince >= 7) {
+                        billingRepository.markChargeAsOverdue(charge.id, daysSince)
+                    }
+                }
+                
+                // Reload charges to get updated overdue status
+                val updatedChargesResult = billingRepository.getAllDriverCharges(driver.id)
+                val updatedCharges = updatedChargesResult.getOrDefault(allCharges)
+                
+                // Categorize charges
+                val paid = updatedCharges.filter { it.isPaid }
+                val overdue = updatedCharges.filter { it.isOverdue && !it.isPaid }
+                val unpaid = updatedCharges.filter { !it.isPaid && !it.isOverdue && it.finalCharge > 0 }
 
                 _selectedDriver.value = DriverBillingInfo(
                     user = driver,
                     invoices = invoicesResult.getOrDefault(emptyList()),
-                    unpaidCharges = unpaidChargesResult.getOrDefault(emptyList()),
+                    unpaidCharges = unpaid,
+                    overdueCharges = overdue,
+                    paidCharges = paid,
                     paymentConfirmations = paymentConfirmationsResult.getOrDefault(emptyList()),
                     tierUpgradeRecords = tierUpgradeRecordsResult.getOrDefault(emptyList())
                 )
+                
+                println("Driver billing loaded - Paid: ${paid.size}, Unpaid: ${unpaid.size}, Overdue: ${overdue.size}")
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to load driver billing info: ${e.message}"
             } finally {

@@ -457,6 +457,7 @@ class BillingRepository @Inject constructor(
 
     /**
      * FIXED: Confirm payment for a specific charge with admin tracking
+     * Ensures charge is properly marked as paid and generates invoice
      */
     suspend fun confirmChargePayment(
         chargeId: String,
@@ -483,20 +484,28 @@ class BillingRepository @Inject constructor(
             notes = notes
         )
 
-        // Save payment confirmation
+        // Save payment confirmation first
         firestore.collection(paymentConfirmationsCollection)
             .document(confirmation.id)
             .set(confirmation)
             .await()
 
-        // Update charge payment status
-        updateChargePayment(
-            chargeId = chargeId,
-            isPaid = true,
-            paymentMethod = paymentMethod,
-            confirmedByAdminId = adminId,
-            confirmedByAdminName = adminName
+        // Update charge payment status - CRITICAL: This marks the charge as PAID
+        val paymentUpdates = mutableMapOf<String, Any>(
+            "isPaid" to true,
+            "paymentDate" to Timestamp.now(),
+            "paymentMethod" to paymentMethod,
+            "paymentConfirmedBy" to adminId,
+            "paymentConfirmedByName" to adminName,
+            "updatedAt" to Timestamp.now(),
+            "isOverdue" to false,
+            "overdueDays" to 0,
+            "overdueCharge" to 0.0
         )
+        
+        firestore.collection(chargesCollection).document(chargeId).update(paymentUpdates).await()
+        
+        println("Payment confirmed for charge $chargeId: Rs. ${charge.finalCharge} via $paymentMethod by $adminName")
 
         confirmation
     }
