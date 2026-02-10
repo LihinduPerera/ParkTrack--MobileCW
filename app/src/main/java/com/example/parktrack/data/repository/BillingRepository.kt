@@ -1,7 +1,10 @@
 package com.example.parktrack.data.repository
 
+import com.example.parktrack.billing.calculateParkingCharge
 import com.example.parktrack.data.model.Invoice
 import com.example.parktrack.data.model.ParkingCharge
+import com.example.parktrack.data.model.ParkingRate
+import com.example.parktrack.data.model.User
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
@@ -20,7 +23,48 @@ class BillingRepository @Inject constructor(
     private val invoicesCollection = "invoices"
 
     /**
-     * Create new parking charge
+     * Create new parking charge with billing calculation
+     */
+    suspend fun createCharge(
+        sessionId: String,
+        driverId: String,
+        vehicleNumber: String,
+        parkingLotId: String,
+        parkingLotName: String,
+        entryTime: Timestamp,
+        exitTime: Timestamp,
+        durationMinutes: Long,
+        user: User,
+        parkingRate: ParkingRate
+    ): Result<String> = runCatching {
+        // Calculate charge using new billing system
+        val calculatedCharge = calculateParkingCharge(durationMinutes, user.subscriptionTier, parkingRate)
+
+        val charge = ParkingCharge(
+            id = "${sessionId}_charge",
+            sessionId = sessionId,
+            driverId = driverId,
+            vehicleNumber = vehicleNumber,
+            parkingLotId = parkingLotId,
+            parkingLotName = parkingLotName,
+            entryTime = entryTime,
+            exitTime = exitTime,
+            durationMinutes = durationMinutes,
+            rateType = parkingRate.rateType.name,
+            baseRate = parkingRate.basePricePerHour,
+            chargeableAmount = calculatedCharge,
+            calculatedCharge = calculatedCharge,
+            discountApplied = 0.0, // Can be enhanced later
+            finalCharge = calculatedCharge
+        )
+
+        val documentRef = firestore.collection(chargesCollection).document(charge.id)
+        documentRef.set(charge).await()
+        charge.id
+    }
+
+    /**
+     * Create new parking charge (legacy method for backward compatibility)
      */
     suspend fun createCharge(charge: ParkingCharge): Result<String> = runCatching {
         val documentRef = firestore.collection(chargesCollection).document(charge.id)

@@ -27,12 +27,33 @@ data class ParkingCharge(
     val createdAt: Timestamp = Timestamp.now(),
     val updatedAt: Timestamp = Timestamp.now()
 ) {
-    fun calculateCharge(baseRate: Double, durationMinutes: Long, rateType: String): Double {
+    fun calculateCharge(
+        baseRate: Double,
+        durationMinutes: Long,
+        rateType: String,
+        subscriptionTier: SubscriptionTier? = null,
+        parkingRate: ParkingRate? = null
+    ): Double {
+        // If subscription tier and parking rate are provided, use new billing logic
+        if (subscriptionTier != null && parkingRate != null) {
+            return calculateParkingCharge(durationMinutes, subscriptionTier, parkingRate)
+        }
+
+        // Fallback to old logic for backward compatibility
         val hours = (durationMinutes + 59) / 60 // Round up to nearest hour
         return when (rateType) {
             "VIP" -> baseRate * hours * 1.5
             "OVERNIGHT" -> baseRate * 0.5 * hours
             else -> baseRate * hours
+        }
+    }
+
+    companion object {
+        /**
+         * Calculate parking charge using the new billing system
+         */
+        fun calculateParkingCharge(durationMinutes: Long, subscriptionTier: SubscriptionTier, parkingRate: ParkingRate): Double {
+            return com.example.parktrack.billing.calculateParkingCharge(durationMinutes, subscriptionTier, parkingRate)
         }
     }
 }

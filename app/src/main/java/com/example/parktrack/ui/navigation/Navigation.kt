@@ -19,6 +19,7 @@ import com.example.parktrack.ui.auth.RegisterScreen
 import com.example.parktrack.ui.driver.DriverDashboard
 import com.example.parktrack.ui.onboarding.OnboardingScreen
 import com.example.parktrack.ui.screens.BillingScreen
+import com.example.parktrack.ui.screens.PricingInfoScreen
 import com.example.parktrack.ui.screens.ReportsScreen
 import com.example.parktrack.viewmodel.AuthState
 import com.example.parktrack.viewmodel.AuthViewModel
@@ -45,6 +46,7 @@ sealed class Screen(val route: String) {
     object ParkingLotMap : Screen("parking_lot_map")
     object AddParkingLot : Screen("add_parking_lot")
     object ParkingLotManagement : Screen("parking_lot_management")
+    object PricingInfo : Screen("pricing_info")
 }
 
 
@@ -158,6 +160,9 @@ fun ParkTrackNavHost(
                 onViewReports = {
                     navController.navigate(Screen.Reports.route)
                 },
+                onViewPricing = {
+                    navController.navigate(Screen.PricingInfo.route)
+                },
                 onNavigateToProfile = {
                     navController.navigate(Screen.Profile.route)
                 },
@@ -193,7 +198,8 @@ fun ParkTrackNavHost(
         }
         composable(Screen.Billing.route) {
             BillingScreen(
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onViewPricing = { navController.navigate(Screen.PricingInfo.route) }
             )
         }
 
@@ -283,6 +289,12 @@ fun ParkTrackNavHost(
                     // Navigate back to admin dashboard after successful operation
                     navController.popBackStack()
                 }
+            )
+        }
+
+        composable(Screen.PricingInfo.route) {
+            PricingInfoScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
     }

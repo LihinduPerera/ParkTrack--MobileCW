@@ -16,7 +16,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.parktrack.ui.components.ErrorDialog
+import com.example.parktrack.ui.components.UserTierCard
 import com.example.parktrack.viewmodel.BillingViewModel
+import com.example.parktrack.viewmodel.UserTierViewModel
 import com.google.firebase.auth.FirebaseAuth
 import java.text.SimpleDateFormat
 import java.util.*
@@ -25,7 +27,9 @@ import java.util.*
 @Composable
 fun BillingScreen(
     onBackClick: () -> Unit,
-    viewModel: BillingViewModel = hiltViewModel()
+    onViewPricing: () -> Unit = {},
+    viewModel: BillingViewModel = hiltViewModel(),
+    userTierViewModel: UserTierViewModel = hiltViewModel()
 ) {
     val invoices by viewModel.invoices.collectAsStateWithLifecycle()
     val currentInvoice by viewModel.currentInvoice.collectAsStateWithLifecycle()
@@ -33,6 +37,10 @@ fun BillingScreen(
     val overdueInvoices by viewModel.overdueSessions.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
+    
+    val currentUser by userTierViewModel.currentUser.collectAsStateWithLifecycle()
+    val isUserLoading by userTierViewModel.isLoading.collectAsStateWithLifecycle()
+    val userErrorMessage by userTierViewModel.errorMessage.collectAsStateWithLifecycle()
 
     val userId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
@@ -42,6 +50,7 @@ fun BillingScreen(
             viewModel.loadCurrentMonthInvoice(userId)
             viewModel.loadUnpaidCharges(userId)
             viewModel.loadOverdueInvoices(userId)
+            userTierViewModel.loadCurrentUser()
         }
     }
 
@@ -64,6 +73,15 @@ fun BillingScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            // User Tier Card
+            if (!isUserLoading && currentUser != null) {
+                UserTierCard(
+                    tier = currentUser!!.subscriptionTier,
+                    modifier = Modifier.padding(16.dp),
+                    onViewPricing = onViewPricing
+                )
+            }
+
             // Current Invoice Card
             if (!isLoading && currentInvoice != null) {
                 CurrentInvoiceCard(currentInvoice!!)

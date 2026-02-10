@@ -15,7 +15,7 @@ class ParkingLotRepository @Inject constructor(
 ) {
     private val parkingLotsCollection = "parkingLots"
 
-    /**
+/**
      * Get all parking lots
      */
     suspend fun getAllParkingLots(): Result<List<ParkingLot>> = runCatching {
@@ -24,6 +24,21 @@ class ParkingLotRepository @Inject constructor(
             .get()
             .await()
             .toObjects(ParkingLot::class.java)
+    }
+
+    /**
+     * Get all parking lots (simplified version for ViewModel)
+     */
+    suspend fun getAllParkingLotsList(): List<ParkingLot> {
+        return try {
+            firestore.collection(parkingLotsCollection)
+                .orderBy("name")
+                .get()
+                .await()
+                .toObjects(ParkingLot::class.java)
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
     /**

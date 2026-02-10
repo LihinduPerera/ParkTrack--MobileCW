@@ -36,6 +36,7 @@ fun DriverDashboard(
     onLogout: () -> Unit,
     onViewBilling: () -> Unit,
     onViewReports: () -> Unit,
+    onViewPricing: () -> Unit = {},
     onNavigateToProfile: () -> Unit,
     onNavigateToVehicles: (() -> Unit)? = null,
     onNavigateToParkingLots: (() -> Unit)? = null,
@@ -295,6 +296,23 @@ fun DriverDashboard(
                 ) {
                     Text(
                         text = "View Billing & Invoices",
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+
+                // Pricing Info Button
+                Button(
+                    onClick = onViewPricing,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                    ),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Text(
+                        text = "View Pricing Plans",
                         modifier = Modifier.padding(vertical = 8.dp),
                         style = MaterialTheme.typography.labelLarge
                     )

@@ -6,6 +6,7 @@ data class User(
     val email: String = "",
     val fullName: String = "",
     val role: UserRole = UserRole.DRIVER,
+    val subscriptionTier: SubscriptionTier = SubscriptionTier.NORMAL,
     val phoneNumber: String = "",
     val vehicleNumber: String = "",
     val createdAt: Long = System.currentTimeMillis(),
@@ -22,4 +23,10 @@ data class User(
 enum class UserRole {
     DRIVER,
     ADMIN
+}
+
+enum class SubscriptionTier {
+    NORMAL,
+    GOLD,
+    PLATINUM
 }

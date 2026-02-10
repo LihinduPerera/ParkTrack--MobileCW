@@ -15,6 +15,10 @@ data class ParkingRate(
     val vipMultiplier: Double = 1.5, // 50% extra for VIP
     val hourlyRate: Double = 0.0, // Direct hourly rate
     val discountPercentage: Double = 0.0, // For frequent parkers
+    // Tier-specific rates
+    val normalRate: Double = 0.0, // Rate for NORMAL tier users
+    val goldRate: Double = 0.0, // Rate for GOLD tier users
+    val platinumRate: Double = 0.0, // Rate for PLATINUM tier users
     val isActive: Boolean = true,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
