@@ -3,52 +3,142 @@ package com.example.parktrack.billing
 import com.example.parktrack.data.model.ParkingRate
 import com.example.parktrack.data.model.SubscriptionTier
 import kotlin.math.ceil
+import kotlin.math.floor
 
+/**
+ * FIXED TIER PRICING - As per requirements:
+ * - Normal Tier: Rs. 100/hour (fee calculated only on exit)
+ * - Gold Tier: Rs. 80/hour (1st hour free, then charged for completed hours only)
+ * - Platinum Tier: Rs. 60/hour (1st hour free, then charged for completed hours only)
+ * 
+ * ALL TIERS: Fee is calculated ONLY on exit, not on entry
+ */
+object TierPricing {
+    const val NORMAL_HOURLY_RATE = 100.0
+    const val GOLD_HOURLY_RATE = 80.0
+    const val PLATINUM_HOURLY_RATE = 60.0
+    
+    const val FREE_HOURS_GOLD_PLATINUM = 1 // First hour free for Gold/Platinum
+}
+
+/**
+ * Legacy enum for backward compatibility
+ */
 enum class MembershipTier(val hourlyRate: Double, val dailyCap: Double, val monthlyUnlimited: Double?) {
-    NORMAL(10.0, 50.0, null), // Normal users pay full rate
-    GOLD(5.0, 40.0, null),    // Gold users get discount
-    PLATINUM(4.0, 30.0, 200.0) // Platinum users get more discount and monthly cap
+    NORMAL(TierPricing.NORMAL_HOURLY_RATE, 500.0, null),
+    GOLD(TierPricing.GOLD_HOURLY_RATE, 400.0, null),
+    PLATINUM(TierPricing.PLATINUM_HOURLY_RATE, 300.0, 2000.0)
 }
 
 data class ParkingSession(val id: String, val hours: Double, val date: String)
 
 /**
  * Calculate parking charge based on subscription tier and parking rates
+ * FIXED: Fee is calculated ONLY on exit for ALL tiers
+ * 
+ * NORMAL TIER:
+ * - Hours rounded UP to nearest hour
+ * - Example: 1 min = 1 hour, 61 min = 2 hours
+ * 
+ * GOLD/PLATINUM TIERS:
+ * - First hour is FREE (no charge)
+ * - After first hour, charge ONLY for COMPLETED full hours (rounded DOWN)
+ * - Example: 2h 30m = 1 hour free + 1 completed hour charged
+ * 
  * @param durationMinutes Total parking duration in minutes
  * @param subscriptionTier User's subscription tier
- * @param parkingRate Parking rate configuration
+ * @param parkingRate Parking rate configuration (optional, uses fixed rates if not provided)
  * @return Calculated charge amount
  */
-fun calculateParkingCharge(durationMinutes: Long, subscriptionTier: SubscriptionTier, parkingRate: ParkingRate): Double {
-    val hours = durationMinutes / 60.0
-
-    // Determine the applicable rate based on subscription tier
+fun calculateParkingCharge(
+    durationMinutes: Long, 
+    subscriptionTier: SubscriptionTier, 
+    parkingRate: ParkingRate? = null
+): Double {
+    // Get the applicable rate based on subscription tier (use fixed rates)
     val applicableRate = when (subscriptionTier) {
-        SubscriptionTier.NORMAL -> parkingRate.normalRate.takeIf { it > 0 } ?: parkingRate.basePricePerHour
-        SubscriptionTier.GOLD -> parkingRate.goldRate.takeIf { it > 0 } ?: parkingRate.basePricePerHour * 0.8 // 20% discount if not specified
-        SubscriptionTier.PLATINUM -> parkingRate.platinumRate.takeIf { it > 0 } ?: parkingRate.basePricePerHour * 0.6 // 40% discount if not specified
+        SubscriptionTier.NORMAL -> if (parkingRate?.normalRate != null && parkingRate.normalRate > 0) {
+            parkingRate.normalRate
+        } else {
+            TierPricing.NORMAL_HOURLY_RATE
+        }
+        SubscriptionTier.GOLD -> if (parkingRate?.goldRate != null && parkingRate.goldRate > 0) {
+            parkingRate.goldRate
+        } else {
+            TierPricing.GOLD_HOURLY_RATE
+        }
+        SubscriptionTier.PLATINUM -> if (parkingRate?.platinumRate != null && parkingRate.platinumRate > 0) {
+            parkingRate.platinumRate
+        } else {
+            TierPricing.PLATINUM_HOURLY_RATE
+        }
     }
 
-    // Apply billing rules based on tier
-    val baseCharge = when (subscriptionTier) {
+    return when (subscriptionTier) {
         SubscriptionTier.NORMAL -> {
-            // Normal users: Pay full hour even for 1 minute
-            val chargeableHours = ceil(hours)
+            // NORMAL TIER: Calculate on exit - round UP to nearest hour
+            val hours = durationMinutes / 60.0
+            val chargeableHours = ceil(hours).toInt()
             applicableRate * chargeableHours
         }
         SubscriptionTier.GOLD, SubscriptionTier.PLATINUM -> {
-            // Gold/Platinum users: No charge until exceeding 1 hour
-            if (hours <= 1.0) {
+            // GOLD/PLATINUM: First hour FREE, then charge only COMPLETED hours
+            val hours = durationMinutes / 60.0
+            
+            if (hours <= TierPricing.FREE_HOURS_GOLD_PLATINUM) {
+                // Still within free hour
                 0.0
             } else {
-                val chargeableHours = hours - 1.0 // Free first hour
-                applicableRate * chargeableHours
+                // Subtract the free hour, then count only COMPLETED hours (floor)
+                val chargeableHours = floor(hours - TierPricing.FREE_HOURS_GOLD_PLATINUM).toInt()
+                if (chargeableHours > 0) {
+                    applicableRate * chargeableHours
+                } else {
+                    0.0
+                }
             }
         }
     }.coerceAtLeast(0.0) // Ensure non-negative
+}
 
-    // Apply daily cap if applicable
-    return minOf(baseCharge, parkingRate.maxDailyPrice)
+/**
+ * Calculate charge for Gold/Platinum tier drivers
+ * First hour free, then only completed full hours are charged
+ */
+fun calculateTierWithFreeHour(
+    durationMinutes: Long,
+    hourlyRate: Double
+): Double {
+    val hours = durationMinutes / 60.0
+    
+    return if (hours <= TierPricing.FREE_HOURS_GOLD_PLATINUM) {
+        0.0
+    } else {
+        val chargeableHours = floor(hours - TierPricing.FREE_HOURS_GOLD_PLATINUM).toInt()
+        if (chargeableHours > 0) hourlyRate * chargeableHours else 0.0
+    }
+}
+
+/**
+ * Get the hourly rate for a specific tier
+ */
+fun getTierHourlyRate(tier: SubscriptionTier): Double {
+    return when (tier) {
+        SubscriptionTier.NORMAL -> TierPricing.NORMAL_HOURLY_RATE
+        SubscriptionTier.GOLD -> TierPricing.GOLD_HOURLY_RATE
+        SubscriptionTier.PLATINUM -> TierPricing.PLATINUM_HOURLY_RATE
+    }
+}
+
+/**
+ * Get tier display name with pricing info
+ */
+fun getTierDisplayName(tier: SubscriptionTier): String {
+    return when (tier) {
+        SubscriptionTier.NORMAL -> "Normal (Rs. 100/hr)"
+        SubscriptionTier.GOLD -> "Gold (Rs. 80/hr, 1st hr free)"
+        SubscriptionTier.PLATINUM -> "Platinum (Rs. 60/hr, 1st hr free)"
+    }
 }
 
 /**

@@ -2,10 +2,15 @@ package com.example.parktrack.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.parktrack.billing.TierPricing
+import com.example.parktrack.billing.getTierDisplayName
+import com.example.parktrack.data.model.ParkingCharge
 import com.example.parktrack.data.model.ParkingSession
 import com.example.parktrack.data.model.QRCodeData
+import com.example.parktrack.data.model.SubscriptionTier
 import com.example.parktrack.data.model.User
 import com.example.parktrack.data.repository.AuthRepository
+import com.example.parktrack.data.repository.BillingRepository
 import com.example.parktrack.data.repository.ParkingSessionRepository
 import com.example.parktrack.utils.QRCodeValidator
 import com.example.parktrack.utils.ValidationResult
@@ -23,6 +28,29 @@ import kotlinx.coroutines.tasks.await
 import java.util.UUID
 import javax.inject.Inject
 
+/**
+ * Data class to hold complete scan result details
+ */
+data class ScanResultDetails(
+    val driverName: String = "",
+    val driverEmail: String = "",
+    val vehicleNumber: String = "",
+    val vehicleModel: String = "",
+    val vehicleColor: String = "",
+    val subscriptionTier: SubscriptionTier = SubscriptionTier.NORMAL,
+    val tierDisplay: String = "",
+    val entryTime: Timestamp? = null,
+    val exitTime: Timestamp? = null,
+    val durationMinutes: Long = 0,
+    val parkingFee: Double = 0.0,
+    val feeDescription: String = "",
+    val isPaid: Boolean = false,
+    val paymentStatus: String = "",
+    val sessionType: String = "", // ENTRY or EXIT
+    val gateLocation: String = "",
+    val hasActiveSession: Boolean = false
+)
+
 enum class ScanState {
     IDLE,
     SCANNING,
@@ -34,6 +62,7 @@ enum class ScanState {
 @HiltViewModel
 class AdminScannerViewModel @Inject constructor(
     private val parkingSessionRepository: ParkingSessionRepository,
+    private val billingRepository: BillingRepository,
     private val authRepository: AuthRepository
 ) : ViewModel() {
     
@@ -59,6 +88,9 @@ class AdminScannerViewModel @Inject constructor(
     private val _activeSessions = MutableStateFlow<List<ParkingSession>>(emptyList())
     val activeSessions: StateFlow<List<ParkingSession>> = _activeSessions.asStateFlow()
     
+    private val _activeDriverCount = MutableStateFlow(0)
+    val activeDriverCount: StateFlow<Int> = _activeDriverCount.asStateFlow()
+    
     private val _currentAdmin = MutableStateFlow<User?>(null)
     val currentAdmin: StateFlow<User?> = _currentAdmin.asStateFlow()
     
@@ -73,6 +105,14 @@ class AdminScannerViewModel @Inject constructor(
     
     private val _scannedVehicleColor = MutableStateFlow("")
     val scannedVehicleColor: StateFlow<String> = _scannedVehicleColor.asStateFlow()
+    
+    // NEW: Complete scan details for UI display
+    private val _scanResultDetails = MutableStateFlow<ScanResultDetails?>(null)
+    val scanResultDetails: StateFlow<ScanResultDetails?> = _scanResultDetails.asStateFlow()
+    
+    // NEW: Current parking charge for payment tracking
+    private val _currentParkingCharge = MutableStateFlow<ParkingCharge?>(null)
+    val currentParkingCharge: StateFlow<ParkingCharge?> = _currentParkingCharge.asStateFlow()
     
     // Processing lock to prevent duplicate scans
     private var isProcessing = false
@@ -111,6 +151,7 @@ class AdminScannerViewModel @Inject constructor(
     
     /**
      * Process scanned QR code string with debouncing and duplicate prevention
+     * FIXED: Shows all relevant details including tier, time, and fee status
      */
     fun processScannedQR(qrString: String) {
         // Check if already processing or duplicate scan
@@ -181,10 +222,10 @@ class AdminScannerViewModel @Inject constructor(
                     return@launch
                 }
                 
-                 _scannedDriver.value = driver
-                 _scannedQRData.value = qrData
-                 _scannedVehicleModel.value = qrData.vehicleModel
-                 _scannedVehicleColor.value = qrData.vehicleColor
+                _scannedDriver.value = driver
+                _scannedQRData.value = qrData
+                _scannedVehicleModel.value = qrData.vehicleModel
+                _scannedVehicleColor.value = qrData.vehicleColor
                 
                 // Check if driver has active session
                 val activeSession = parkingSessionRepository
@@ -251,18 +292,19 @@ class AdminScannerViewModel @Inject constructor(
     }
     
     /**
-     * Create entry parking session
+     * FIXED: Create entry parking session with immediate charge for Normal tier
      */
     private suspend fun createEntrySession(qrData: QRCodeData, driver: User) {
         try {
             val admin = _currentAdmin.value
+            val entryTime = Timestamp.now()
             
             val session = ParkingSession(
                 id = UUID.randomUUID().toString(),
                 driverId = qrData.userId,
                 driverName = driver.fullName,
                 vehicleNumber = qrData.vehicleNumber,
-                entryTime = Timestamp.now(),
+                entryTime = entryTime,
                 gateLocation = _selectedGate.value,
                 scannedByAdminId = admin?.id ?: "",
                 adminName = admin?.fullName ?: "Unknown",
@@ -272,13 +314,59 @@ class AdminScannerViewModel @Inject constructor(
             
             val result = parkingSessionRepository.createSession(session)
             
-if (result.isSuccess) {
+            if (result.isSuccess) {
+                // Create charge record - NO CHARGE on entry, fee calculated on exit
+                val chargeResult = billingRepository.createCharge(
+                    sessionId = session.id,
+                    driverId = driver.id,
+                    driverName = driver.fullName,
+                    driverEmail = driver.email,
+                    vehicleNumber = qrData.vehicleNumber,
+                    vehicleModel = qrData.vehicleModel,
+                    parkingLotId = _selectedGate.value,
+                    parkingLotName = _selectedGate.value,
+                    entryTime = entryTime,
+                    user = driver
+                )
+                
+                val charge = chargeResult.getOrNull()
+                _currentParkingCharge.value = charge
+                
+                // Prepare scan result details
+                val tier = driver.subscriptionTier
+                val feeDescription = when (tier) {
+                    SubscriptionTier.NORMAL -> "Rs. 100/hour (fee calculated on exit)"
+                    SubscriptionTier.GOLD -> "First hour FREE, then Rs. 80/hour for completed hours"
+                    SubscriptionTier.PLATINUM -> "First hour FREE, then Rs. 60/hour for completed hours"
+                }
+                
+                _scanResultDetails.value = ScanResultDetails(
+                    driverName = driver.fullName,
+                    driverEmail = driver.email,
+                    vehicleNumber = qrData.vehicleNumber,
+                    vehicleModel = qrData.vehicleModel,
+                    vehicleColor = qrData.vehicleColor,
+                    subscriptionTier = tier,
+                    tierDisplay = getTierDisplayName(tier),
+                    entryTime = entryTime,
+                    parkingFee = 0.0, // No charge on entry
+                    feeDescription = feeDescription,
+                    isPaid = true, // No charge on entry, so considered "paid"
+                    paymentStatus = "Fee calculated on exit",
+                    sessionType = "ENTRY",
+                    gateLocation = _selectedGate.value,
+                    hasActiveSession = true
+                )
+                
                 _scanState.value = ScanState.SUCCESS
-                _scanResultMessage.value = "Entry recorded for ${driver.fullName}"
-                // Fetch updated scans asynchronously (don't wait for it)
+                _scanResultMessage.value = "Entry recorded for ${driver.fullName}. Fee will be calculated on exit."
+                
+                // Fetch updated scans asynchronously
                 fetchRecentScans()
                 // Increment admin's scan count
                 incrementAdminScanCount()
+                // Refresh active sessions
+                listenToActiveSessions()
             } else {
                 val error = result.exceptionOrNull()
                 _scanState.value = ScanState.ERROR
@@ -292,7 +380,7 @@ if (result.isSuccess) {
     }
     
     /**
-     * Complete exit parking session
+     * FIXED: Complete exit parking session with proper fee calculation
      */
     private suspend fun completeExitSession(
         qrData: QRCodeData,
@@ -303,7 +391,7 @@ if (result.isSuccess) {
             val exitTime = Timestamp.now()
             val result = parkingSessionRepository.completeSession(activeSession.id, exitTime)
             
-if (result.isSuccess) {
+            if (result.isSuccess) {
                 val duration = if (activeSession.entryTime != null) {
                     parkingSessionRepository.calculateDuration(
                         activeSession.entryTime,
@@ -316,14 +404,62 @@ if (result.isSuccess) {
                 val hours = duration / 60
                 val minutes = duration % 60
                 val durationStr = if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
+                
+                // Update charge with final calculation
+                val chargeId = "${activeSession.id}_charge"
+                val updatedChargeResult = billingRepository.updateChargeOnExit(
+                    chargeId = chargeId,
+                    exitTime = exitTime,
+                    durationMinutes = duration,
+                    subscriptionTier = driver.subscriptionTier
+                )
+                
+                val finalCharge = updatedChargeResult.getOrNull()
+                _currentParkingCharge.value = finalCharge
+                
+                // Prepare scan result details
+                val tier = driver.subscriptionTier
+                val feeDescription = when (tier) {
+                    SubscriptionTier.NORMAL -> "Rs. 100/hour (rounded up)"
+                    SubscriptionTier.GOLD -> "Rs. 80/hour after 1st free hour (completed hours only)"
+                    SubscriptionTier.PLATINUM -> "Rs. 60/hour after 1st free hour (completed hours only)"
+                }
+                
+                val paymentStatus = when {
+                    finalCharge?.finalCharge == 0.0 -> "FREE - No charge"
+                    finalCharge?.isPaid == true -> "PAID"
+                    else -> "UNPAID - Collect ${finalCharge?.getFormattedAmount() ?: "Rs. 0.00"}"
+                }
+                
+                _scanResultDetails.value = ScanResultDetails(
+                    driverName = driver.fullName,
+                    driverEmail = driver.email,
+                    vehicleNumber = qrData.vehicleNumber,
+                    vehicleModel = qrData.vehicleModel,
+                    vehicleColor = qrData.vehicleColor,
+                    subscriptionTier = tier,
+                    tierDisplay = getTierDisplayName(tier),
+                    entryTime = activeSession.entryTime,
+                    exitTime = exitTime,
+                    durationMinutes = duration,
+                    parkingFee = finalCharge?.finalCharge ?: 0.0,
+                    feeDescription = feeDescription,
+                    isPaid = finalCharge?.isPaid ?: false,
+                    paymentStatus = paymentStatus,
+                    sessionType = "EXIT",
+                    gateLocation = _selectedGate.value,
+                    hasActiveSession = false
+                )
 
                 _scanState.value = ScanState.SUCCESS
-                _scanResultMessage.value = "Exit recorded. Duration: $durationStr"
+                _scanResultMessage.value = "Exit recorded. Duration: $durationStr. Fee: ${finalCharge?.getFormattedAmount() ?: "Rs. 0.00"}"
 
                 // Update recent scans
                 fetchRecentScans()
                 // Increment admin's scan count
                 incrementAdminScanCount()
+                // Refresh active sessions
+                listenToActiveSessions()
             } else {
                 val error = result.exceptionOrNull()
                 _scanState.value = ScanState.ERROR
@@ -390,10 +526,12 @@ if (result.isSuccess) {
         _scannedVehicleModel.value = ""
         _scannedVehicleColor.value = ""
         _sessionType.value = ""
+        _scanResultDetails.value = null
+        _currentParkingCharge.value = null
         isProcessing = false
     }
     
-override fun onCleared() {
+    override fun onCleared() {
         super.onCleared()
         // Clear debounce records when ViewModel is destroyed
         ScanDebounceManager.clearAll()
@@ -417,7 +555,7 @@ override fun onCleared() {
     }
     
     /**
-     * Listen to all active parking sessions
+     * Listen to all active parking sessions and update driver count
      */
     private fun listenToActiveSessions() {
         viewModelScope.launch {
@@ -425,6 +563,7 @@ override fun onCleared() {
                 parkingSessionRepository.observeAllActiveSessions()
                     .collect { sessions ->
                         _activeSessions.value = sessions
+                        _activeDriverCount.value = sessions.size
                     }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -445,6 +584,13 @@ override fun onCleared() {
                     return@launch
                 }
                 
+                val driverSnapshot = firestore.collection("users")
+                    .document(session.driverId)
+                    .get()
+                    .await()
+                val driver = driverSnapshot.toObject(User::class.java)
+                    ?.copy(id = session.driverId)
+                
                 val exitTime = Timestamp.now()
                 val result = parkingSessionRepository.completeSession(sessionId, exitTime)
                 
@@ -462,10 +608,23 @@ override fun onCleared() {
                     val minutes = duration % 60
                     val durationStr = if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
                     
-                    _scanState.value = ScanState.SUCCESS
-                    _scanResultMessage.value = "Manual exit recorded. Duration: $durationStr"
+                    // Update charge
+                    val chargeId = "${sessionId}_charge"
+                    val updatedChargeResult = driver?.subscriptionTier?.let { tier ->
+                        billingRepository.updateChargeOnExit(
+                            chargeId = chargeId,
+                            exitTime = exitTime,
+                            durationMinutes = duration,
+                            subscriptionTier = tier
+                        )
+                    }
                     
-                    _scannedDriver.value = com.example.parktrack.data.model.User(
+                    val finalCharge = updatedChargeResult?.getOrNull()
+                    
+                    _scanState.value = ScanState.SUCCESS
+                    _scanResultMessage.value = "Manual exit recorded. Duration: $durationStr. Fee: ${finalCharge?.getFormattedAmount() ?: "Rs. 0.00"}"
+                    
+                    _scannedDriver.value = User(
                         id = session.driverId,
                         fullName = session.driverName,
                         vehicleNumber = session.vehicleNumber
@@ -501,6 +660,39 @@ override fun onCleared() {
             } catch (e: Exception) {
                 _scanState.value = ScanState.ERROR
                 _scanResultMessage.value = "Failed to record manual exit: ${e.message}"
+                e.printStackTrace()
+            }
+        }
+    }
+    
+    /**
+     * Mark current charge as paid (admin collection)
+     */
+    fun markChargeAsPaid(paymentMethod: String = "CASH") {
+        viewModelScope.launch {
+            try {
+                val charge = _currentParkingCharge.value
+                val admin = _currentAdmin.value
+                
+                if (charge != null && admin != null) {
+                    billingRepository.confirmChargePayment(
+                        chargeId = charge.id,
+                        adminId = admin.id,
+                        adminName = admin.fullName,
+                        paymentMethod = paymentMethod
+                    )
+                    
+                    _currentParkingCharge.value = charge.copy(
+                        isPaid = true,
+                        paymentMethod = paymentMethod,
+                        paymentConfirmedBy = admin.id,
+                        paymentConfirmedByName = admin.fullName
+                    )
+                    
+                    _scanResultMessage.value = "Payment collected: ${charge.getFormattedAmount()}"
+                }
+            } catch (e: Exception) {
+                _scanResultMessage.value = "Failed to record payment: ${e.message}"
                 e.printStackTrace()
             }
         }

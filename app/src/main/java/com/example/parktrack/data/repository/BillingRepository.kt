@@ -1,10 +1,13 @@
 package com.example.parktrack.data.repository
 
 import com.example.parktrack.billing.calculateParkingCharge
+import com.example.parktrack.billing.TierPricing
+import com.example.parktrack.data.model.DriverUnpaidSummary
 import com.example.parktrack.data.model.Invoice
 import com.example.parktrack.data.model.ParkingCharge
 import com.example.parktrack.data.model.ParkingRate
 import com.example.parktrack.data.model.PaymentConfirmation
+import com.example.parktrack.data.model.SubscriptionTier
 import com.example.parktrack.data.model.TierUpgradeRecord
 import com.example.parktrack.data.model.User
 import com.google.firebase.Timestamp
@@ -26,44 +29,86 @@ class BillingRepository @Inject constructor(
     private val invoicesCollection = "invoices"
 
     /**
-     * Create new parking charge with billing calculation
+     * FIXED: Create new parking charge record on entry
+     * NO CHARGE is calculated on entry - fee is calculated ONLY on exit for ALL tiers
      */
     suspend fun createCharge(
         sessionId: String,
         driverId: String,
+        driverName: String,
+        driverEmail: String,
         vehicleNumber: String,
+        vehicleModel: String,
         parkingLotId: String,
         parkingLotName: String,
         entryTime: Timestamp,
-        exitTime: Timestamp,
-        durationMinutes: Long,
-        user: User,
-        parkingRate: ParkingRate
-    ): Result<String> = runCatching {
-        // Calculate charge using new billing system
-        val calculatedCharge = calculateParkingCharge(durationMinutes, user.subscriptionTier, parkingRate)
-
+        user: User
+    ): Result<ParkingCharge> = runCatching {
+        val tier = user.subscriptionTier
+        
+        // NO CHARGE on entry - fee calculated only on exit
         val charge = ParkingCharge(
             id = "${sessionId}_charge",
             sessionId = sessionId,
             driverId = driverId,
+            driverName = driverName,
+            driverEmail = driverEmail,
             vehicleNumber = vehicleNumber,
+            vehicleModel = vehicleModel,
             parkingLotId = parkingLotId,
             parkingLotName = parkingLotName,
             entryTime = entryTime,
-            exitTime = exitTime,
-            durationMinutes = durationMinutes,
-            rateType = parkingRate.rateType.name,
-            baseRate = parkingRate.basePricePerHour,
-            chargeableAmount = calculatedCharge,
-            calculatedCharge = calculatedCharge,
-            discountApplied = 0.0, // Can be enhanced later
-            finalCharge = calculatedCharge
+            subscriptionTier = tier.name,
+            baseRate = when (tier) {
+                SubscriptionTier.NORMAL -> TierPricing.NORMAL_HOURLY_RATE
+                SubscriptionTier.GOLD -> TierPricing.GOLD_HOURLY_RATE
+                SubscriptionTier.PLATINUM -> TierPricing.PLATINUM_HOURLY_RATE
+            },
+            calculatedCharge = 0.0, // No charge on entry
+            finalCharge = 0.0, // Will be calculated on exit
+            isPaid = false // All charges start as unpaid
         )
 
         val documentRef = firestore.collection(chargesCollection).document(charge.id)
         documentRef.set(charge).await()
-        charge.id
+        charge
+    }
+
+    /**
+     * FIXED: Update charge on exit with final calculation
+     * Fee is calculated ONLY on exit for ALL tiers
+     */
+    suspend fun updateChargeOnExit(
+        chargeId: String,
+        exitTime: Timestamp,
+        durationMinutes: Long,
+        subscriptionTier: SubscriptionTier
+    ): Result<ParkingCharge> = runCatching {
+        // Get existing charge
+        val chargeDoc = firestore.collection(chargesCollection).document(chargeId).get().await()
+        val existingCharge = chargeDoc.toObject(ParkingCharge::class.java)
+            ?: throw Exception("Charge not found")
+
+        // Calculate final charge on exit using billing logic
+        val finalCharge = calculateParkingCharge(durationMinutes, subscriptionTier)
+
+        val updates = mutableMapOf<String, Any>(
+            "exitTime" to exitTime,
+            "durationMinutes" to durationMinutes,
+            "calculatedCharge" to finalCharge,
+            "finalCharge" to finalCharge,
+            "updatedAt" to Timestamp.now()
+        )
+
+        firestore.collection(chargesCollection).document(chargeId).update(updates).await()
+        
+        // Return updated charge
+        existingCharge.copy(
+            exitTime = exitTime,
+            durationMinutes = durationMinutes,
+            calculatedCharge = finalCharge,
+            finalCharge = finalCharge
+        )
     }
 
     /**
@@ -110,15 +155,74 @@ class BillingRepository @Inject constructor(
         firestore.collection(chargesCollection)
             .whereEqualTo("driverId", driverId)
             .whereEqualTo("isPaid", false)
+            .whereGreaterThan("finalCharge", 0.0)
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
             .get()
             .await()
             .toObjects(ParkingCharge::class.java)
     }
 
     /**
-     * Update charge payment status
+     * FIXED: Get comprehensive unpaid summary for a driver
      */
-    suspend fun updateChargePayment(chargeId: String, isPaid: Boolean, paymentMethod: String? = null): Result<Unit> = runCatching {
+    suspend fun getDriverUnpaidSummary(driverId: String): Result<DriverUnpaidSummary> = runCatching {
+        val unpaidCharges = getUnpaidCharges(driverId).getOrThrow()
+        
+        if (unpaidCharges.isEmpty()) {
+            // Get driver info
+            val userDoc = firestore.collection("users").document(driverId).get().await()
+            val user = userDoc.toObject(User::class.java)
+            
+            DriverUnpaidSummary(
+                driverId = driverId,
+                driverName = user?.fullName ?: "Unknown",
+                driverEmail = user?.email ?: "",
+                totalUnpaidCharges = 0,
+                totalUnpaidAmount = 0.0,
+                unpaidCharges = emptyList(),
+                oldestUnpaidDate = null
+            )
+        } else {
+            val oldestUnpaid = unpaidCharges.minByOrNull { it.createdAt.toDate().time }
+            val driverName = unpaidCharges.firstOrNull()?.driverName ?: "Unknown"
+            val driverEmail = unpaidCharges.firstOrNull()?.driverEmail ?: ""
+            
+            DriverUnpaidSummary(
+                driverId = driverId,
+                driverName = driverName,
+                driverEmail = driverEmail,
+                totalUnpaidCharges = unpaidCharges.size,
+                totalUnpaidAmount = unpaidCharges.sumOf { it.finalCharge },
+                unpaidCharges = unpaidCharges,
+                oldestUnpaidDate = oldestUnpaid?.createdAt
+            )
+        }
+    }
+
+    /**
+     * Get ALL unpaid charges across all drivers (for admin)
+     */
+    suspend fun getAllUnpaidCharges(limit: Int = 100): Result<List<ParkingCharge>> = runCatching {
+        firestore.collection(chargesCollection)
+            .whereEqualTo("isPaid", false)
+            .whereGreaterThan("finalCharge", 0.0)
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(limit.toLong())
+            .get()
+            .await()
+            .toObjects(ParkingCharge::class.java)
+    }
+
+    /**
+     * FIXED: Update charge payment status with admin confirmation
+     */
+    suspend fun updateChargePayment(
+        chargeId: String, 
+        isPaid: Boolean, 
+        paymentMethod: String? = null,
+        confirmedByAdminId: String? = null,
+        confirmedByAdminName: String? = null
+    ): Result<Unit> = runCatching {
         val updates = mutableMapOf<String, Any>(
             "isPaid" to isPaid,
             "updatedAt" to Timestamp.now()
@@ -126,6 +230,15 @@ class BillingRepository @Inject constructor(
         if (isPaid) {
             updates["paymentDate"] = Timestamp.now()
             updates["paymentMethod"] = paymentMethod ?: "CASH"
+            if (confirmedByAdminId != null) {
+                updates["paymentConfirmedBy"] = confirmedByAdminId
+            }
+            if (confirmedByAdminName != null) {
+                updates["paymentConfirmedByName"] = confirmedByAdminName
+            }
+            updates["isOverdue"] = false
+            updates["overdueDays"] = 0
+            updates["overdueCharge"] = 0.0
         }
         firestore.collection(chargesCollection).document(chargeId).update(updates).await()
     }
@@ -331,7 +444,7 @@ class BillingRepository @Inject constructor(
     }
 
     /**
-     * Confirm payment for a specific charge (Admin only)
+     * FIXED: Confirm payment for a specific charge with admin tracking
      */
     suspend fun confirmChargePayment(
         chargeId: String,
@@ -365,7 +478,13 @@ class BillingRepository @Inject constructor(
             .await()
 
         // Update charge payment status
-        updateChargePayment(chargeId, true, paymentMethod)
+        updateChargePayment(
+            chargeId = chargeId,
+            isPaid = true,
+            paymentMethod = paymentMethod,
+            confirmedByAdminId = adminId,
+            confirmedByAdminName = adminName
+        )
 
         confirmation
     }
@@ -393,19 +512,6 @@ class BillingRepository @Inject constructor(
             .get()
             .await()
             .toObjects(Invoice::class.java)
-    }
-
-    /**
-     * Get all unpaid charges
-     */
-    suspend fun getAllUnpaidCharges(limit: Int = 100): Result<List<ParkingCharge>> = runCatching {
-        firestore.collection(chargesCollection)
-            .whereEqualTo("isPaid", false)
-            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
-            .limit(limit.toLong())
-            .get()
-            .await()
-            .toObjects(ParkingCharge::class.java)
     }
 
     /**
@@ -525,5 +631,24 @@ class BillingRepository @Inject constructor(
             .get()
             .await()
             .toObjects(TierUpgradeRecord::class.java)
+    }
+
+    /**
+     * Mark charge as overdue (for cron job or periodic check)
+     */
+    suspend fun markChargeAsOverdue(chargeId: String, overdueDays: Int): Result<Unit> = runCatching {
+        val chargeDoc = firestore.collection(chargesCollection).document(chargeId).get().await()
+        val charge = chargeDoc.toObject(ParkingCharge::class.java)
+            ?: throw Exception("Charge not found")
+        
+        if (!charge.isPaid && charge.finalCharge > 0) {
+            val overdueCharge = charge.finalCharge * 0.05 * overdueDays // 5% per day
+            firestore.collection(chargesCollection).document(chargeId).update(mapOf(
+                "isOverdue" to true,
+                "overdueDays" to overdueDays,
+                "overdueCharge" to overdueCharge,
+                "updatedAt" to Timestamp.now()
+            )).await()
+        }
     }
 }

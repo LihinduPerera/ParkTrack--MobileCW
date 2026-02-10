@@ -69,6 +69,8 @@ fun QRScannerScreen(
     val scannedSession by viewModel.scannedQRData.collectAsStateWithLifecycle()
     val scannedVehicleModel by viewModel.scannedVehicleModel.collectAsStateWithLifecycle()
     val scannedVehicleColor by viewModel.scannedVehicleColor.collectAsStateWithLifecycle()
+    val scanResultDetails by viewModel.scanResultDetails.collectAsStateWithLifecycle()
+    val activeDriverCount by viewModel.activeDriverCount.collectAsStateWithLifecycle()
     
     var showGateMenu by remember { mutableStateOf(false) }
     
@@ -95,11 +97,58 @@ fun QRScannerScreen(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
+            // Active Drivers Counter Card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                colors = androidx.compose.material3.CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                ),
+                elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Active Drivers",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            text = "$activeDriverCount",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = MaterialTheme.shapes.medium
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "🚗",
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                    }
+                }
+            }
+            
             // Gate Selection Section
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
@@ -329,18 +378,33 @@ fun QRScannerScreen(
                 driverName = it.fullName,
                 vehicleNumber = scannedSession?.vehicleNumber ?: it.vehicleNumber,
                 gateLocation = selectedGate,
-                status = if (sessionType == "ENTRY") "ACTIVE" else "COMPLETED"
+                status = if (sessionType == "ENTRY") "ACTIVE" else "COMPLETED",
+                entryTime = scanResultDetails?.entryTime,
+                exitTime = scanResultDetails?.exitTime,
+                durationMinutes = scanResultDetails?.durationMinutes ?: 0
             )
         }
         
         if (displaySession != null) {
+            // Extract to local variable to enable smart cast
+            val details = scanResultDetails
+            // Only show pay button on EXIT and when there's an unpaid fee
+            val showPayButton = sessionType == "EXIT" && 
+                               details != null && 
+                               details.parkingFee > 0 && 
+                               !details.isPaid
+            
             ScanSuccessDialog(
                 session = displaySession,
                 sessionType = sessionType,
                 driverName = scannedDriver!!.fullName,
                 onDismiss = { viewModel.resetScanState() },
                 vehicleModel = scannedVehicleModel,
-                vehicleColor = scannedVehicleColor
+                vehicleColor = scannedVehicleColor,
+                scanResultDetails = details,
+                onMarkAsPaid = if (showPayButton) {
+                    { viewModel.markChargeAsPaid() }
+                } else null
             )
         }
     }
