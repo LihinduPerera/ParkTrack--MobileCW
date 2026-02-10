@@ -76,9 +76,10 @@ fun calculateParkingCharge(
 
     return when (subscriptionTier) {
         SubscriptionTier.NORMAL -> {
-            // NORMAL TIER: Calculate on exit - round UP to nearest hour
+            // NORMAL TIER: Minimum charge Rs 100 (1 hour) even for 0 minutes
+            // Round UP to nearest hour for any duration
             val hours = durationMinutes / 60.0
-            val chargeableHours = ceil(hours).toInt()
+            val chargeableHours = if (hours <= 0) 1 else ceil(hours).toInt()
             applicableRate * chargeableHours
         }
         SubscriptionTier.GOLD, SubscriptionTier.PLATINUM -> {

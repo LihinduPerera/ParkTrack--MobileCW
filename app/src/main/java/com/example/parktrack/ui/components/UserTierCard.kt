@@ -42,19 +42,19 @@ fun UserTierCard(
 
     val (tierBenefits, tierColorName) = when (tier) {
         SubscriptionTier.NORMAL -> listOf(
-            "Standard hourly rates",
-            "Pay full hour minimum charge"
+            "Rs 100/hour",
+            "Rs 100 minimum on exit",
+            "Hours rounded UP"
         ) to "Gray"
         SubscriptionTier.GOLD -> listOf(
+            "Rs 80/hour",
             "First hour FREE",
-            "20% discount on rates",
-            "Lower daily caps"
+            "Completed hours only"
         ) to "Gold"
         SubscriptionTier.PLATINUM -> listOf(
-            "First hour FREE", 
-            "40% discount on rates",
-            "Best rates guaranteed",
-            "Lowest daily caps"
+            "Rs 60/hour",
+            "First hour FREE",
+            "Completed hours only"
         ) to "Silver"
     }
 

@@ -28,8 +28,9 @@ class ParkingSessionRepository @Inject constructor(
         session.id
     }
     
-    /**
+/**
      * Complete parking session (exit scan)
+     * FIXED: Added better error handling and verification
      */
     suspend fun completeSession(sessionId: String, exitTime: Timestamp): Result<Unit> = runCatching {
         val snapshot = firestore.collection(sessionsCollection).document(sessionId).get().await()
@@ -46,13 +47,30 @@ class ParkingSessionRepository @Inject constructor(
             0L
         }
         
-        firestore.collection(sessionsCollection).document(sessionId).update(
-            mapOf(
-                "exitTime" to exitTime,
-                "status" to "COMPLETED",
-                "durationMinutes" to durationMinutes
-            )
-        ).await()
+        // Create update map with all required fields
+        val updates = mapOf(
+            "exitTime" to exitTime,
+            "status" to "COMPLETED",
+            "durationMinutes" to durationMinutes
+        )
+        
+        // Perform the update
+        firestore.collection(sessionsCollection).document(sessionId).update(updates).await()
+        
+        // Verify the update was successful by reading the document back
+        val verificationSnapshot = firestore.collection(sessionsCollection).document(sessionId).get().await()
+        val updatedSession = verificationSnapshot.toObject(ParkingSession::class.java)
+        
+        if (updatedSession?.status != "COMPLETED") {
+            throw Exception("Failed to update session status to COMPLETED. Current status: ${updatedSession?.status}")
+        }
+        
+        if (updatedSession?.exitTime == null) {
+            throw Exception("Failed to update session exit time")
+        }
+        
+        // Return success
+        Unit
     }
     
     /**

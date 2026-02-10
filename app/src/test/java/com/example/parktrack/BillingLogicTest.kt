@@ -31,6 +31,21 @@ class BillingLogicTest {
     // ==================== NORMAL TIER TESTS ====================
 
     @Test
+    fun `test normal tier minimum charge is Rs 100 even for 0 minutes`() {
+        // 0 minutes parking - should still charge minimum 1 hour = Rs. 100
+        val charge0 = calculateParkingCharge(0, SubscriptionTier.NORMAL, sampleParkingRate)
+        assertEquals(100.0, charge0, 0.01)
+        
+        // 1 minute parking - should charge 1 hour = Rs. 100
+        val charge1 = calculateParkingCharge(1, SubscriptionTier.NORMAL, sampleParkingRate)
+        assertEquals(100.0, charge1, 0.01)
+        
+        // 30 minutes parking - should charge 1 hour = Rs. 100
+        val charge30 = calculateParkingCharge(30, SubscriptionTier.NORMAL, sampleParkingRate)
+        assertEquals(100.0, charge30, 0.01)
+    }
+
+    @Test
     fun `test normal tier charges full hour even for 1 minute`() {
         // 1 minute parking - should charge 1 hour = Rs. 100
         val charge = calculateParkingCharge(1, SubscriptionTier.NORMAL, sampleParkingRate)

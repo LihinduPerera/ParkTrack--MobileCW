@@ -394,6 +394,15 @@ fun QRScannerScreen(
                                details.parkingFee > 0 && 
                                !details.isPaid
             
+            // Auto-close dialog after 3 seconds for ENTRY scans (no payment needed)
+            // For EXIT scans with payment, admin must manually close
+            if (sessionType == "ENTRY" || (details?.parkingFee == 0.0)) {
+                androidx.compose.runtime.LaunchedEffect(Unit) {
+                    kotlinx.coroutines.delay(3000) // 3 seconds
+                    viewModel.resetScanState()
+                }
+            }
+            
             ScanSuccessDialog(
                 session = displaySession,
                 sessionType = sessionType,

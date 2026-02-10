@@ -141,7 +141,7 @@ private fun NormalTierCard(
             )
 
             Text(
-                text = "Rs. ${rates?.normalRate ?: "100"}/hour",
+                text = "Rs. 100/hour",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -154,17 +154,17 @@ private fun NormalTierCard(
             ) {
                 FeatureItem(
                     icon = Icons.Default.CheckCircle,
-                    text = "Pay full hourly rate",
+                    text = "Rs 100 minimum charge on exit",
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 FeatureItem(
                     icon = Icons.Default.CheckCircle,
-                    text = "Minimum charge: 1 hour",
+                    text = "Hours rounded UP (1 min = 1 hour)",
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 FeatureItem(
                     icon = Icons.Default.CheckCircle,
-                    text = "Daily cap: Rs. ${rates?.maxDailyPrice ?: "50.0"}",
+                    text = "Simple flat rate pricing",
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
@@ -227,7 +227,7 @@ private fun GoldTierCard(
             )
 
             Text(
-                text = "Rs. ${rates?.goldRate ?: "80"}/hour",
+                text = "Rs. 80/hour",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFFB8860B)
@@ -245,7 +245,7 @@ private fun GoldTierCard(
                 )
                 FeatureItem(
                     icon = Icons.Default.CheckCircle,
-                    text = "20% discount on rates",
+                    text = "Save Rs 20/hour vs Normal",
                     color = Color(0xFFB8860B)
                 )
                 FeatureItem(
@@ -313,7 +313,7 @@ private fun PlatinumTierCard(
             )
 
             Text(
-                text = "Rs. ${rates?.platinumRate ?: "60"}/hour",
+                text = "Rs. 60/hour",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF708090)
@@ -331,7 +331,7 @@ private fun PlatinumTierCard(
                 )
                 FeatureItem(
                     icon = Icons.Default.Star,
-                    text = "40% discount on rates",
+                    text = "Save Rs 40/hour vs Normal",
                     color = Color(0xFF708090)
                 )
                 FeatureItem(
@@ -488,13 +488,18 @@ private fun BillingRulesCard() {
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 BillingRule(
-                    title = "Normal Users",
-                    rule = "Charged for full hour even if parked for only 1 minute"
+                    title = "Normal Users (Rs 100/hour)",
+                    rule = "Minimum Rs 100 charge on exit - even if parked for less than 1 minute. Hours rounded UP."
                 )
                 
                 BillingRule(
-                    title = "Gold & Platinum Users",
-                    rule = "First hour is completely FREE - charges start after exceeding 1 hour"
+                    title = "Gold Users (Rs 80/hour)",
+                    rule = "First hour FREE, then charged only for COMPLETED hours. Example: 2h 30m = only 1 hour charged (Rs 80)"
+                )
+                
+                BillingRule(
+                    title = "Platinum Users (Rs 60/hour)",
+                    rule = "First hour FREE, then charged only for COMPLETED hours. Example: 2h 30m = only 1 hour charged (Rs 60)"
                 )
                 
                 BillingRule(

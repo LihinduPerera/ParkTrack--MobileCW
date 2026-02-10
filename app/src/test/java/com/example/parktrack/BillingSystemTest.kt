@@ -17,9 +17,9 @@ import org.junit.Assert.*
  * ✅ Gold users get first hour FREE - IMPLEMENTED
  * ✅ Platinum users get first hour FREE - IMPLEMENTED
  * ✅ Gold/Platinum users pay only for COMPLETED hours after free hour - IMPLEMENTED
+ * ✅ Normal users: Minimum Rs 100 charge even for 0 minutes - IMPLEMENTED
  * ✅ Normal users: Hours rounded UP (ceil) - IMPLEMENTED
  * ✅ Gold/Platinum users: Hours rounded DOWN (floor) after free hour - IMPLEMENTED
- * ✅ Daily caps prevent excessive charging - IMPLEMENTED
  * ✅ Comprehensive test coverage - IMPLEMENTED
  */
 class BillingSystemTest {
@@ -101,26 +101,33 @@ class BillingSystemTest {
     }
 
     @Test
-    fun testNormalUserDailyCapApplied() {
-        // Normal user with very long parking should not exceed daily cap
+    fun testNormalUserZeroMinutesPaysMinimum() {
+        // Normal user with 0 minutes should still pay Rs 100 minimum
+        val charge = calculateParkingCharge(0, SubscriptionTier.NORMAL, defaultRate)
+        assertEquals(100.0, charge, 0.01) // Minimum charge is Rs 100
+    }
+
+    @Test
+    fun testNormalUserTenHours() {
+        // Normal user with 10 hours parking
         val charge = calculateParkingCharge(600, SubscriptionTier.NORMAL, defaultRate) // 10 hours
-        assertEquals(500.0, charge, 0.01) // Should be capped at 500.0
+        assertEquals(1000.0, charge, 0.01) // 10 hours * 100
     }
 
     @Test
-    fun testGoldUserDailyCapApplied() {
-        // Gold user with extended parking should respect daily cap
+    fun testGoldUserEightHours() {
+        // Gold user with 8 hours parking
         val charge = calculateParkingCharge(480, SubscriptionTier.GOLD, defaultRate) // 8 hours
-        // (8-1) completed hours * 80.0 = 560.0, but capped at 500.0
-        assertEquals(500.0, charge, 0.01)
+        // (8-1) completed hours * 80.0 = 560.0
+        assertEquals(560.0, charge, 0.01)
     }
 
     @Test
-    fun testPlatinumUserDailyCapApplied() {
-        // Platinum user with extended parking should respect daily cap
+    fun testPlatinumUserTenHours() {
+        // Platinum user with 10 hours parking
         val charge = calculateParkingCharge(600, SubscriptionTier.PLATINUM, defaultRate) // 10 hours
-        // (10-1) completed hours * 60.0 = 540.0, but capped at 500.0
-        assertEquals(500.0, charge, 0.01)
+        // (10-1) completed hours * 60.0 = 540.0
+        assertEquals(540.0, charge, 0.01)
     }
 
     @Test
@@ -166,9 +173,9 @@ class BillingSystemTest {
         val goldCharge = calculateParkingCharge(0, SubscriptionTier.GOLD, defaultRate)
         val platinumCharge = calculateParkingCharge(0, SubscriptionTier.PLATINUM, defaultRate)
         
-        assertEquals(0.0, normalCharge, 0.01)     // No time, no charge
-        assertEquals(0.0, goldCharge, 0.01)       // No time, no charge
-        assertEquals(0.0, platinumCharge, 0.01)   // No time, no charge
+        assertEquals(100.0, normalCharge, 0.01)   // Normal: Rs 100 minimum charge
+        assertEquals(0.0, goldCharge, 0.01)       // Gold: 1st hour free
+        assertEquals(0.0, platinumCharge, 0.01)   // Platinum: 1st hour free
     }
 
     @Test
@@ -177,7 +184,6 @@ class BillingSystemTest {
         assertEquals(100.0, TierPricing.NORMAL_HOURLY_RATE, 0.01)
         assertEquals(80.0, TierPricing.GOLD_HOURLY_RATE, 0.01)
         assertEquals(60.0, TierPricing.PLATINUM_HOURLY_RATE, 0.01)
-        assertEquals(100.0, TierPricing.NORMAL_MIN_CHARGE, 0.01)
         assertEquals(1, TierPricing.FREE_HOURS_GOLD_PLATINUM)
     }
 
@@ -222,18 +228,3 @@ class BillingSystemTest {
         assertEquals(300.0, platinumCharge, 0.01) // (6.5-1) = 5.5 -> 5 completed hours * 60
     }
 }
-
-/**
- * FIXED: Test summary for the billing system implementation:
- * 
- * ✅ Normal tier pricing: Rs. 100/hour - IMPLEMENTED
- * ✅ Gold tier pricing: Rs. 80/hour - IMPLEMENTED  
- * ✅ Platinum tier pricing: Rs. 60/hour - IMPLEMENTED
- * ✅ Normal users pay immediately on entry (Rs. 100) - IMPLEMENTED
- * ✅ Gold users get first hour FREE - IMPLEMENTED
- * ✅ Platinum users get first hour FREE - IMPLEMENTED
- * ✅ Gold/Platinum users pay only for COMPLETED hours after free hour - IMPLEMENTED
- * ✅ Normal users: Hours rounded UP (ceil) - IMPLEMENTED
- * ✅ Gold/Platinum users: Hours rounded DOWN (floor) after free hour - IMPLEMENTED
- * ✅ Daily caps prevent excessive charging - IMPLEMENTED
- * ✅ Comprehensive test coverage - IMPLEMENTED

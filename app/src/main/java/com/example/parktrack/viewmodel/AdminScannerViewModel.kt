@@ -335,9 +335,9 @@ class AdminScannerViewModel @Inject constructor(
                 // Prepare scan result details
                 val tier = driver.subscriptionTier
                 val feeDescription = when (tier) {
-                    SubscriptionTier.NORMAL -> "Rs. 100/hour (fee calculated on exit)"
-                    SubscriptionTier.GOLD -> "First hour FREE, then Rs. 80/hour for completed hours"
-                    SubscriptionTier.PLATINUM -> "First hour FREE, then Rs. 60/hour for completed hours"
+                    SubscriptionTier.NORMAL -> "Rs 100 minimum charge on exit (even for 1 minute)"
+                    SubscriptionTier.GOLD -> "First hour FREE, then Rs 80/hour for completed hours only"
+                    SubscriptionTier.PLATINUM -> "First hour FREE, then Rs 60/hour for completed hours only"
                 }
                 
                 _scanResultDetails.value = ScanResultDetails(
@@ -380,7 +380,7 @@ class AdminScannerViewModel @Inject constructor(
     }
     
     /**
-     * FIXED: Complete exit parking session with proper fee calculation
+     * FIXED: Complete exit parking session with proper fee calculation and error handling
      */
     private suspend fun completeExitSession(
         qrData: QRCodeData,
@@ -392,6 +392,11 @@ class AdminScannerViewModel @Inject constructor(
             val result = parkingSessionRepository.completeSession(activeSession.id, exitTime)
             
             if (result.isSuccess) {
+                // Verify session was actually marked as completed
+                val verificationResult = parkingSessionRepository.getSessionById(activeSession.id).getOrNull()
+                if (verificationResult?.status != "COMPLETED") {
+                    throw Exception("Session completion verification failed. Status: ${verificationResult?.status}")
+                }
                 val duration = if (activeSession.entryTime != null) {
                     parkingSessionRepository.calculateDuration(
                         activeSession.entryTime,
@@ -417,12 +422,17 @@ class AdminScannerViewModel @Inject constructor(
                 val finalCharge = updatedChargeResult.getOrNull()
                 _currentParkingCharge.value = finalCharge
                 
+                // Log charge update status for debugging
+                if (updatedChargeResult.isFailure) {
+                    println("Warning: Failed to update charge for session ${activeSession.id}: ${updatedChargeResult.exceptionOrNull()?.message}")
+                }
+                
                 // Prepare scan result details
                 val tier = driver.subscriptionTier
                 val feeDescription = when (tier) {
-                    SubscriptionTier.NORMAL -> "Rs. 100/hour (rounded up)"
-                    SubscriptionTier.GOLD -> "Rs. 80/hour after 1st free hour (completed hours only)"
-                    SubscriptionTier.PLATINUM -> "Rs. 60/hour after 1st free hour (completed hours only)"
+                    SubscriptionTier.NORMAL -> "Rs 100 minimum (Rs 100/hour rounded UP)"
+                    SubscriptionTier.GOLD -> "Rs 80/hour - 1st hour FREE, completed hours only"
+                    SubscriptionTier.PLATINUM -> "Rs 60/hour - 1st hour FREE, completed hours only"
                 }
                 
                 val paymentStatus = when {
@@ -454,12 +464,24 @@ class AdminScannerViewModel @Inject constructor(
                 _scanState.value = ScanState.SUCCESS
                 _scanResultMessage.value = "Exit recorded. Duration: $durationStr. Fee: ${finalCharge?.getFormattedAmount() ?: "Rs. 0.00"}"
 
-                // Update recent scans
+                // Update recent scans immediately
                 fetchRecentScans()
                 // Increment admin's scan count
                 incrementAdminScanCount()
-                // Refresh active sessions
-                listenToActiveSessions()
+                // Force immediate refresh of active sessions to ensure UI updates
+                try {
+                    val updatedActiveSessions = parkingSessionRepository.getAllActiveSessions().getOrNull()
+                    if (updatedActiveSessions != null) {
+                        _activeSessions.value = updatedActiveSessions
+                        _activeDriverCount.value = updatedActiveSessions.size
+                    }
+                } catch (e: Exception) {
+                    println("Warning: Failed to refresh active sessions: ${e.message}")
+                }
+                
+                // Force refresh recent scans again after a short delay to ensure Firestore consistency
+                kotlinx.coroutines.delay(1000) // 1 second delay
+                fetchRecentScans()
             } else {
                 val error = result.exceptionOrNull()
                 _scanState.value = ScanState.ERROR
@@ -488,7 +510,12 @@ class AdminScannerViewModel @Inject constructor(
                     .get()
                     .await()
                     .mapNotNull { document ->
-                        document.toObject(ParkingSession::class.java)?.copy(id = document.id)
+                        val session = document.toObject(ParkingSession::class.java)?.copy(id = document.id)
+                        // Debug logging to track session statuses
+                        if (session != null) {
+                            println("Fetched session: ${session.id}, status: ${session.status}, driver: ${session.driverName}")
+                        }
+                        session
                     }
                 
                 _recentScans.value = sessions
@@ -556,6 +583,7 @@ class AdminScannerViewModel @Inject constructor(
     
     /**
      * Listen to all active parking sessions and update driver count
+     * FIXED: Added debug logging to track session updates
      */
     private fun listenToActiveSessions() {
         viewModelScope.launch {
@@ -564,6 +592,11 @@ class AdminScannerViewModel @Inject constructor(
                     .collect { sessions ->
                         _activeSessions.value = sessions
                         _activeDriverCount.value = sessions.size
+                        // Debug logging to track active sessions
+                        println("Active sessions updated: ${sessions.size} sessions")
+                        sessions.forEach { session ->
+                            println("Active: ${session.id} - ${session.driverName}")
+                        }
                     }
             } catch (e: Exception) {
                 e.printStackTrace()
