@@ -388,11 +388,11 @@ fun QRScannerScreen(
         if (displaySession != null) {
             // Extract to local variable to enable smart cast
             val details = scanResultDetails
-            // Only show pay button on EXIT and when there's an unpaid fee
-            val showPayButton = sessionType == "EXIT" && 
-                               details != null && 
-                               details.parkingFee > 0 && 
-                               !details.isPaid
+            // Only show payment buttons on EXIT and when there's an unpaid fee
+            val showPaymentButtons = sessionType == "EXIT" && 
+                                   details != null && 
+                                   details.parkingFee > 0 && 
+                                   !details.isPaid
             
             // Auto-close dialog after 3 seconds for ENTRY scans (no payment needed)
             // For EXIT scans with payment, admin must manually close
@@ -411,8 +411,11 @@ fun QRScannerScreen(
                 vehicleModel = scannedVehicleModel,
                 vehicleColor = scannedVehicleColor,
                 scanResultDetails = details,
-                onMarkAsPaid = if (showPayButton) {
+                onMarkAsPaid = if (showPaymentButtons) {
                     { viewModel.markChargeAsPaid() }
+                } else null,
+                onMarkAsUnpaid = if (showPaymentButtons) {
+                    { viewModel.markChargeAsUnpaid() }
                 } else null
             )
         }

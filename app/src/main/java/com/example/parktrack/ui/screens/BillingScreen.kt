@@ -53,6 +53,7 @@ fun BillingScreen(
             viewModel.loadDriverInvoices(userId)
             viewModel.loadCurrentMonthInvoice(userId)
             viewModel.loadOverdueInvoices(userId)
+            viewModel.observeAllCharges(userId) // Add real-time observation
             userTierViewModel.loadCurrentUser()
         }
     }

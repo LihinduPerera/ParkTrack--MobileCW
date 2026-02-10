@@ -708,24 +708,104 @@ class AdminScannerViewModel @Inject constructor(
                 val admin = _currentAdmin.value
                 
                 if (charge != null && admin != null) {
-                    billingRepository.confirmChargePayment(
+                    val result = billingRepository.confirmChargePayment(
                         chargeId = charge.id,
                         adminId = admin.id,
                         adminName = admin.fullName,
                         paymentMethod = paymentMethod
                     )
                     
-                    _currentParkingCharge.value = charge.copy(
-                        isPaid = true,
-                        paymentMethod = paymentMethod,
-                        paymentConfirmedBy = admin.id,
-                        paymentConfirmedByName = admin.fullName
-                    )
-                    
-                    _scanResultMessage.value = "Payment collected: ${charge.getFormattedAmount()}"
+                    if (result.isSuccess) {
+                        _currentParkingCharge.value = charge.copy(
+                            isPaid = true,
+                            paymentMethod = paymentMethod,
+                            paymentConfirmedBy = admin.id,
+                            paymentConfirmedByName = admin.fullName
+                        )
+                        
+                        // Update scan result details to reflect payment
+                        _scanResultDetails.value = _scanResultDetails.value?.copy(
+                            isPaid = true,
+                            paymentStatus = "PAID"
+                        )
+                        
+                        _scanResultMessage.value = "Payment collected: ${charge.getFormattedAmount()}"
+                        
+                        // Add a small delay to ensure Firestore updates propagate
+                        kotlinx.coroutines.delay(1000)
+                        
+                        // Refresh driver charges to update billing views
+                        try {
+                            billingRepository.getAllDriverCharges(charge.driverId).getOrNull()?.let { charges ->
+                                // This will trigger the flow to update the billing screens
+                                println("Successfully refreshed ${charges.size} charges for driver ${charge.driverId}")
+                            }
+                        } catch (e: Exception) {
+                            println("Warning: Could not refresh charges after payment: ${e.message}")
+                        }
+                    } else {
+                        _scanResultMessage.value = "Failed to record payment: ${result.exceptionOrNull()?.message}"
+                    }
                 }
             } catch (e: Exception) {
                 _scanResultMessage.value = "Failed to record payment: ${e.message}"
+                e.printStackTrace()
+            }
+        }
+    }
+    
+    /**
+     * Mark current charge as unpaid (driver will pay later)
+     */
+    fun markChargeAsUnpaid() {
+        viewModelScope.launch {
+            try {
+                val charge = _currentParkingCharge.value
+                
+                if (charge != null) {
+                    // Ensure the charge is marked as unpaid in Firestore
+                    val result = billingRepository.updateChargePayment(
+                        chargeId = charge.id,
+                        isPaid = false,
+                        paymentMethod = null,
+                        confirmedByAdminId = null,
+                        confirmedByAdminName = null
+                    )
+                    
+                    if (result.isSuccess) {
+                        _currentParkingCharge.value = charge.copy(
+                            isPaid = false,
+                            paymentMethod = "",
+                            paymentConfirmedBy = "",
+                            paymentConfirmedByName = ""
+                        )
+                        
+                        // Update scan result details to reflect unpaid status
+                        _scanResultDetails.value = _scanResultDetails.value?.copy(
+                            isPaid = false,
+                            paymentStatus = "UNPAID - ${charge.getFormattedAmount()}"
+                        )
+                        
+                        _scanResultMessage.value = "Charge marked as unpaid. Driver can pay later."
+                        
+                        // Add a small delay to ensure Firestore updates propagate
+                        kotlinx.coroutines.delay(1000)
+                        
+                        // Refresh driver charges to update billing views
+                        try {
+                            billingRepository.getAllDriverCharges(charge.driverId).getOrNull()?.let { charges ->
+                                // This will trigger the flow to update the billing screens
+                                println("Successfully refreshed ${charges.size} charges for driver ${charge.driverId}")
+                            }
+                        } catch (e: Exception) {
+                            println("Warning: Could not refresh charges after marking unpaid: ${e.message}")
+                        }
+                    } else {
+                        _scanResultMessage.value = "Failed to mark as unpaid: ${result.exceptionOrNull()?.message}"
+                    }
+                }
+            } catch (e: Exception) {
+                _scanResultMessage.value = "Failed to mark as unpaid: ${e.message}"
                 e.printStackTrace()
             }
         }

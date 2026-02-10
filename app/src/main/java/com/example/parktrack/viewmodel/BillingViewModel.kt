@@ -135,6 +135,24 @@ class BillingViewModel @Inject constructor(
             }
         }
     }
+    
+    /**
+     * Observe all charges for a driver in real-time
+     */
+    fun observeAllCharges(driverId: String) {
+        viewModelScope.launch {
+            try {
+                billingRepository.observeDriverCharges(driverId).collectLatest { charges ->
+                    // Categorize by payment status in real-time
+                    _paidCharges.value = charges.filter { it.isPaid }
+                    _unpaidCharges.value = charges.filter { !it.isPaid && !it.isOverdue && it.finalCharge > 0 }
+                    _overdueCharges.value = charges.filter { it.isOverdue }
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Failed to observe charges"
+            }
+        }
+    }
 
     fun loadOverdueInvoices(driverId: String) {
         viewModelScope.launch {

@@ -48,7 +48,8 @@ fun ScanSuccessDialog(
     vehicleModel: String = "",
     vehicleColor: String = "",
     scanResultDetails: ScanResultDetails? = null,
-    onMarkAsPaid: (() -> Unit)? = null
+    onMarkAsPaid: (() -> Unit)? = null,
+    onMarkAsUnpaid: (() -> Unit)? = null
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -327,27 +328,47 @@ fun ScanSuccessDialog(
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
-                // Action Buttons - Only show "Mark as Paid" on EXIT with unpaid fee
+                // Action Buttons - Only show payment buttons on EXIT with unpaid fee
                 if (sessionType == "EXIT" &&
                     scanResultDetails?.parkingFee != null && 
                     scanResultDetails.parkingFee > 0 && 
-                    !scanResultDetails.isPaid && 
-                    onMarkAsPaid != null) {
+                    !scanResultDetails.isPaid) {
+                    
                     // Show "Mark as Paid" button for unpaid charges
-                    Button(
-                        onClick = {
-                            onMarkAsPaid()
-                            onDismiss()
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4CAF50)
-                        )
-                    ) {
-                        Text("MARK AS PAID (Rs. ${String.format("%.2f", scanResultDetails.parkingFee)})")
+                    if (onMarkAsPaid != null) {
+                        Button(
+                            onClick = {
+                                onMarkAsPaid()
+                                onDismiss()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF4CAF50)
+                            )
+                        ) {
+                            Text("MARK AS PAID (Rs. ${String.format("%.2f", scanResultDetails.parkingFee)})")
+                        }
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                     
-                    Spacer(modifier = Modifier.height(8.dp))
+                    // Show "Mark as Unpaid (Pay Later)" button
+                    if (onMarkAsUnpaid != null) {
+                        Button(
+                            onClick = {
+                                onMarkAsUnpaid()
+                                onDismiss()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFFF9800)
+                            )
+                        ) {
+                            Text("MARK AS UNPAID (Pay Later)")
+                        }
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                 }
                 
                 // OK Button

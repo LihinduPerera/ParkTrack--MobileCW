@@ -622,7 +622,41 @@ class BillingRepository @Inject constructor(
     }
 
     /**
-     * Get tier upgrade records for a driver
+     * Get all charges for a driver
+     */
+    suspend fun getAllDriverCharges(driverId: String): Result<List<ParkingCharge>> = runCatching {
+        firestore.collection(chargesCollection)
+            .whereEqualTo("driverId", driverId)
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .get()
+            .await()
+            .toObjects(ParkingCharge::class.java)
+    }
+    
+    /**
+     * Observe all charges for a driver in real-time
+     */
+    fun observeDriverCharges(driverId: String): kotlinx.coroutines.flow.Flow<List<ParkingCharge>> {
+        return callbackFlow {
+            val listener = firestore.collection(chargesCollection)
+                .whereEqualTo("driverId", driverId)
+                .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        close(error)
+                        return@addSnapshotListener
+                    }
+                    
+                    val charges = snapshot?.toObjects(ParkingCharge::class.java) ?: emptyList()
+                    trySend(charges)
+                }
+            
+            awaitClose { listener.remove() }
+        }
+    }
+
+    /**
+     * Get tier upgrade records for a specific driver
      */
     suspend fun getDriverTierUpgradeRecords(driverId: String): Result<List<TierUpgradeRecord>> = runCatching {
         firestore.collection(tierUpgradeRecordsCollection)
