@@ -200,13 +200,26 @@ fun ParkTrackNavHost(
             QRScannerScreen(
                 onBackPress = {
                     navController.popBackStack()
+                },
+                onNavigateToDriverBilling = { driverId ->
+                    navController.navigate("${Screen.AdminBillingManagement.route}?driverId=$driverId")
                 }
             )
         }
-        composable(Screen.Billing.route) {
+        composable(
+            route = "${Screen.Billing.route}?initialTab={initialTab}",
+            arguments = listOf(
+                androidx.navigation.navArgument("initialTab") {
+                    type = androidx.navigation.NavType.IntType
+                    defaultValue = 0
+                }
+            )
+        ) { backStackEntry ->
+            val initialTab = backStackEntry.arguments?.getInt("initialTab") ?: 0
             BillingScreen(
                 onBackClick = { navController.popBackStack() },
-                onViewPricing = { navController.navigate(Screen.PricingInfo.route) }
+                onViewPricing = { navController.navigate(Screen.PricingInfo.route) },
+                initialTabIndex = initialTab
             )
         }
 
@@ -306,10 +319,20 @@ fun ParkTrackNavHost(
             )
         }
 
-        composable(Screen.AdminBillingManagement.route) {
+        composable(
+            route = "${Screen.AdminBillingManagement.route}?driverId={driverId}",
+            arguments = listOf(
+                androidx.navigation.navArgument("driverId") {
+                    type = androidx.navigation.NavType.StringType
+                    defaultValue = ""
+                }
+            )
+        ) { backStackEntry ->
+            val driverId = backStackEntry.arguments?.getString("driverId") ?: ""
             AdminBillingManagementScreen(
                 onBackClick = { navController.popBackStack() },
-                onNavigateToRateConfiguration = { navController.navigate(Screen.RateConfiguration.route) }
+                onNavigateToRateConfiguration = { navController.navigate(Screen.RateConfiguration.route) },
+                initialDriverId = driverId
             )
         }
 

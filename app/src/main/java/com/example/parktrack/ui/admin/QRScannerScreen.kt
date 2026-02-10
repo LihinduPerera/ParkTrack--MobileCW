@@ -58,6 +58,7 @@ import com.example.parktrack.viewmodel.ScanState
 @Composable
 fun QRScannerScreen(
     onBackPress: () -> Unit,
+    onNavigateToDriverBilling: ((String) -> Unit)? = null,
     viewModel: AdminScannerViewModel = hiltViewModel()
 ) {
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
@@ -411,11 +412,32 @@ fun QRScannerScreen(
                 vehicleModel = scannedVehicleModel,
                 vehicleColor = scannedVehicleColor,
                 scanResultDetails = details,
-                onMarkAsPaid = if (showPaymentButtons) {
-                    { viewModel.markChargeAsPaid() }
+                onMarkAsPaidAndNavigate = if (showPaymentButtons && onNavigateToDriverBilling != null) {
+                    {
+                        viewModel.markChargeAsPaid(
+                            paymentMethod = "CASH",
+                            onSuccess = {
+                                onNavigateToDriverBilling(scannedDriver!!.id)
+                            },
+                            onError = { error ->
+                                // Error is already shown in the dialog via scanResultMessage
+                                println("Payment error: $error")
+                            }
+                        )
+                    }
                 } else null,
-                onMarkAsUnpaid = if (showPaymentButtons) {
-                    { viewModel.markChargeAsUnpaid() }
+                onMarkAsUnpaidAndNavigate = if (showPaymentButtons && onNavigateToDriverBilling != null) {
+                    {
+                        viewModel.markChargeAsUnpaid(
+                            onSuccess = {
+                                onNavigateToDriverBilling(scannedDriver!!.id)
+                            },
+                            onError = { error ->
+                                // Error is already shown in the dialog via scanResultMessage
+                                println("Mark unpaid error: $error")
+                            }
+                        )
+                    }
                 } else null
             )
         }

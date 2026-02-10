@@ -30,6 +30,7 @@ import java.util.*
 fun BillingScreen(
     onBackClick: () -> Unit,
     onViewPricing: () -> Unit = {},
+    initialTabIndex: Int = 0,
     viewModel: BillingViewModel = hiltViewModel(),
     userTierViewModel: UserTierViewModel = hiltViewModel()
 ) {
@@ -58,7 +59,7 @@ fun BillingScreen(
         }
     }
 
-    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    var selectedTabIndex by remember { mutableIntStateOf(initialTabIndex) }
 
     Scaffold(
         topBar = {

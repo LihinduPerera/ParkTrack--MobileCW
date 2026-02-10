@@ -48,8 +48,8 @@ fun ScanSuccessDialog(
     vehicleModel: String = "",
     vehicleColor: String = "",
     scanResultDetails: ScanResultDetails? = null,
-    onMarkAsPaid: (() -> Unit)? = null,
-    onMarkAsUnpaid: (() -> Unit)? = null
+    onMarkAsPaidAndNavigate: (() -> Unit)? = null,
+    onMarkAsUnpaidAndNavigate: (() -> Unit)? = null
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -247,80 +247,37 @@ fun ScanSuccessDialog(
                     }
                 }
                 
-                // Fee and Payment Status Card - ONLY SHOW ON EXIT
+                // Compact Payment Status Row - ONLY SHOW ON EXIT
                 scanResultDetails?.let { details ->
                     if (sessionType == "EXIT") {
-                        Card(
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = when {
-                                    details.parkingFee == 0.0 -> Color(0xFFE8F5E9) // Light green for free
-                                    details.isPaid -> Color(0xFFE8F5E9) // Light green for paid
-                                    else -> Color(0xFFFFF3E0) // Light orange for unpaid
-                                }
-                            )
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.AttachMoney,
-                                        contentDescription = "Fee",
-                                        modifier = Modifier.size(24.dp),
-                                        tint = when {
+                            Text(
+                                text = "Fee: Rs. %.2f".format(details.parkingFee),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        color = when {
                                             details.parkingFee == 0.0 -> Color(0xFF4CAF50)
                                             details.isPaid -> Color(0xFF4CAF50)
                                             else -> Color(0xFFFF9800)
-                                        }
+                                        },
+                                        shape = MaterialTheme.shapes.small
                                     )
-                                    Text(
-                                        text = "Parking Fee: Rs. %.2f".format(details.parkingFee),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = when {
-                                            details.parkingFee == 0.0 -> Color(0xFF2E7D32)
-                                            details.isPaid -> Color(0xFF2E7D32)
-                                            else -> Color(0xFFE65100)
-                                        }
-                                    )
-                                }
-                                
-                                // Payment Status Badge
-                                Box(
-                                    modifier = Modifier
-                                        .background(
-                                            color = when {
-                                                details.parkingFee == 0.0 -> Color(0xFF4CAF50)
-                                                details.isPaid -> Color(0xFF4CAF50)
-                                                else -> Color(0xFFFF9800)
-                                            },
-                                            shape = MaterialTheme.shapes.small
-                                        )
-                                        .padding(horizontal = 16.dp, vertical = 6.dp)
-                                ) {
-                                    Text(
-                                        text = details.paymentStatus.uppercase(),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
-                                    )
-                                }
-                                
-                                // Show payment instruction for unpaid fees
-                                if (!details.isPaid && details.parkingFee > 0) {
-                                    Text(
-                                        text = "Collect payment from driver",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.error,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
+                                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = details.paymentStatus.uppercase(),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
                             }
                         }
                     }
@@ -330,15 +287,15 @@ fun ScanSuccessDialog(
                 
                 // Action Buttons - Only show payment buttons on EXIT with unpaid fee
                 if (sessionType == "EXIT" &&
-                    scanResultDetails?.parkingFee != null && 
-                    scanResultDetails.parkingFee > 0 && 
+                    scanResultDetails?.parkingFee != null &&
+                    scanResultDetails.parkingFee > 0 &&
                     !scanResultDetails.isPaid) {
-                    
-                    // Show "Mark as Paid" button for unpaid charges
-                    if (onMarkAsPaid != null) {
+
+                    // Show "Mark as Paid" button - marks paid and navigates to Paid tab
+                    if (onMarkAsPaidAndNavigate != null) {
                         Button(
                             onClick = {
-                                onMarkAsPaid()
+                                onMarkAsPaidAndNavigate()
                                 onDismiss()
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -348,15 +305,15 @@ fun ScanSuccessDialog(
                         ) {
                             Text("MARK AS PAID (Rs. ${String.format("%.2f", scanResultDetails.parkingFee)})")
                         }
-                        
+
                         Spacer(modifier = Modifier.height(8.dp))
                     }
-                    
-                    // Show "Mark as Unpaid (Pay Later)" button
-                    if (onMarkAsUnpaid != null) {
+
+                    // Show "Unpaid" button - marks unpaid and navigates to Unpaid tab
+                    if (onMarkAsUnpaidAndNavigate != null) {
                         Button(
                             onClick = {
-                                onMarkAsUnpaid()
+                                onMarkAsUnpaidAndNavigate()
                                 onDismiss()
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -364,9 +321,9 @@ fun ScanSuccessDialog(
                                 containerColor = Color(0xFFFF9800)
                             )
                         ) {
-                            Text("MARK AS UNPAID (Pay Later)")
+                            Text("UNPAID")
                         }
-                        
+
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
