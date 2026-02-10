@@ -113,4 +113,7 @@ dependencies {
     
     // Date/Time
     implementation("joda-time:joda-time:2.12.5")
+    
+    // DataStore for preferences
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
 }

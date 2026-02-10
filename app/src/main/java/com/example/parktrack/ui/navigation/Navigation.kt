@@ -24,6 +24,7 @@ import com.example.parktrack.ui.screens.PricingInfoScreen
 import com.example.parktrack.ui.screens.ReportsScreen
 import com.example.parktrack.viewmodel.AuthState
 import com.example.parktrack.viewmodel.AuthViewModel
+import com.example.parktrack.viewmodel.ThemeViewModel
 import kotlinx.coroutines.launch
 
 
@@ -55,7 +56,8 @@ sealed class Screen(val route: String) {
 @Composable
 fun ParkTrackNavHost(
     navController: NavHostController = rememberNavController(),
-    authViewModel: AuthViewModel
+    authViewModel: AuthViewModel,
+    themeViewModel: ThemeViewModel
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
@@ -261,6 +263,7 @@ fun ParkTrackNavHost(
 
         composable(Screen.Preferences.route) {
             com.example.parktrack.ui.admin.PreferencesScreen(
+                themeViewModel = themeViewModel,
                 onBackClick = { navController.popBackStack() }
             )
         }

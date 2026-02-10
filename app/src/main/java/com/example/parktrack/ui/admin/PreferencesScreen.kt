@@ -1,8 +1,5 @@
 package com.example.parktrack.ui.admin
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -12,13 +9,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.parktrack.viewmodel.ThemeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PreferencesScreen(
+    themeViewModel: ThemeViewModel,
     onBackClick: () -> Unit
 ) {
-    var isDarkMode by remember { mutableStateOf(false) }
+    val isDarkMode by themeViewModel.isDarkMode.collectAsState()
     var isVibrationEnabled by remember { mutableStateOf(true) }
 
     Scaffold(
@@ -36,12 +35,12 @@ fun PreferencesScreen(
         Column(modifier = Modifier.padding(padding)) {
             ListItem(
                 headlineContent = { Text("Dark Mode") },
-                supportingContent = { Text("Force dark theme across the app") },
+                supportingContent = { Text("Toggle between dark and light theme") },
                 leadingContent = { Icon(Icons.Default.DarkMode, null) },
                 trailingContent = {
                     Switch(
                         checked = isDarkMode,
-                        onCheckedChange = { isDarkMode = it }
+                        onCheckedChange = { themeViewModel.setDarkMode(it) }
                     )
                 }
             )
