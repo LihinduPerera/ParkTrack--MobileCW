@@ -1,5 +1,7 @@
 # ParkTrack - Smart VIP Parking Facility Management System
 
+![App Image](app/src/main/res/drawable/park_track.png)
+
 ## Overview
 ParkTrack is a comprehensive Android mobile application for managing smart VIP parking facilities. It supports two types of users: Admin (Parking Manager) and Vehicle Owner (Customer).
 

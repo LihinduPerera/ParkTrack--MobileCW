@@ -28,23 +28,32 @@ class ReportRepository @Inject constructor(
     suspend fun generateMonthlyAdminReport(year: Int, month: Int, admin: User): Result<ParkingReport> = runCatching {
         require(admin.role == UserRole.ADMIN) { "Only admins can generate admin reports" }
         
+        android.util.Log.d("ReportRepository", "Generating admin report for $year-$month by admin: ${admin.id}")
+        
         val (startDate, endDate) = getMonthBoundaries(year, month)
+        android.util.Log.d("ReportRepository", "Date range: ${startDate.toDate()} to ${endDate.toDate()}")
         
         // Get all sessions for the month
         val allSessions = firestore.collection("parkingSessions")
-            .whereLessThanOrEqualTo("entryTime", endDate)
             .whereGreaterThanOrEqualTo("entryTime", startDate)
+            .whereLessThanOrEqualTo("entryTime", endDate)
             .get()
             .await()
             .toObjects(com.example.parktrack.data.model.ParkingSession::class.java)
+        
+        android.util.Log.d("ReportRepository", "Found ${allSessions.size} sessions")
 
         val completedSessions = allSessions.filter { it.status == "COMPLETED" }
-        val charges = firestore.collection("parkingCharges")
+        
+        // Get charges for the month - don't filter by date if collection might be empty
+        val chargesSnapshot = firestore.collection("parkingCharges")
             .whereGreaterThanOrEqualTo("createdAt", startDate)
             .whereLessThanOrEqualTo("createdAt", endDate)
             .get()
             .await()
-            .toObjects(com.example.parktrack.data.model.ParkingCharge::class.java)
+        
+        val charges = chargesSnapshot.toObjects(com.example.parktrack.data.model.ParkingCharge::class.java)
+        android.util.Log.d("ReportRepository", "Found ${charges.size} charges")
 
         val totalRevenue = charges.sumOf { it.finalCharge }
         val amountCollected = charges.filter { it.isPaid }.sumOf { it.finalCharge }
@@ -81,9 +90,13 @@ class ReportRepository @Inject constructor(
             generatedByName = admin.fullName
         )
 
+        android.util.Log.d("ReportRepository", "Saving report: ${report.id}")
         // Save report to Firestore
         firestore.collection(reportsCollection).document(report.id).set(report).await()
+        android.util.Log.d("ReportRepository", "Report saved successfully")
         report
+    }.onFailure { e ->
+        android.util.Log.e("ReportRepository", "Error generating admin report", e)
     }
 
     /**
@@ -206,13 +219,25 @@ class ReportRepository @Inject constructor(
      * Get admin reports - only accessible to ADMIN users
      */
     suspend fun getAdminReports(limit: Int = 50): Result<List<ParkingReport>> = runCatching {
-        firestore.collection(reportsCollection)
-            .whereEqualTo("isAdminReport", true)
-            .orderBy("periodStart", com.google.firebase.firestore.Query.Direction.DESCENDING)
-            .limit(limit.toLong())
+        android.util.Log.d("ReportRepository", "Fetching admin reports from collection: $reportsCollection")
+        
+        // Try simple query first - just order by createdAt (most likely to have index)
+        val snapshot = firestore.collection(reportsCollection)
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(limit.toLong() * 2) // Get more and filter in memory
             .get()
             .await()
-            .toObjects(ParkingReport::class.java)
+        
+        val allReports = snapshot.toObjects(ParkingReport::class.java)
+        android.util.Log.d("ReportRepository", "Fetched ${allReports.size} total reports")
+        
+        // Filter admin reports in memory
+        val adminReports = allReports.filter { it.isAdminReport }.take(limit)
+        android.util.Log.d("ReportRepository", "Filtered to ${adminReports.size} admin reports")
+        
+        adminReports
+    }.onFailure { e ->
+        android.util.Log.e("ReportRepository", "Error fetching admin reports", e)
     }
 
     /**
@@ -220,13 +245,22 @@ class ReportRepository @Inject constructor(
      * Used for both drivers viewing their own reports and admins viewing specific driver reports
      */
     suspend fun getDriverReports(driverId: String, limit: Int = 50): Result<List<DriverReport>> = runCatching {
-        firestore.collection(driverReportsCollection)
+        android.util.Log.d("ReportRepository", "Fetching driver reports for driverId: $driverId")
+        
+        // Try with a simpler query first - may avoid composite index issues
+        val snapshot = firestore.collection(driverReportsCollection)
             .whereEqualTo("driverId", driverId)
-            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
-            .limit(limit.toLong())
             .get()
             .await()
-            .toObjects(DriverReport::class.java)
+        
+        val reports = snapshot.toObjects(DriverReport::class.java)
+            .sortedByDescending { it.createdAt.toDate().time }
+            .take(limit)
+        
+        android.util.Log.d("ReportRepository", "Fetched ${reports.size} driver reports")
+        reports
+    }.onFailure { e ->
+        android.util.Log.e("ReportRepository", "Error fetching driver reports", e)
     }
 
     /**

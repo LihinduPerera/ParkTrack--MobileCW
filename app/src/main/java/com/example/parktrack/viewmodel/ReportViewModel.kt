@@ -113,28 +113,38 @@ class ReportViewModel @Inject constructor(
             _isLoading.value = true
             _reportListState.value = ReportListState.Loading
             
+            android.util.Log.d("ReportViewModel", "Loading reports for user: ${user.id}, role: ${user.role}")
+            
             try {
                 when (user.role) {
                     UserRole.ADMIN -> {
+                        android.util.Log.d("ReportViewModel", "Fetching admin reports")
                         val result = reportRepository.getAdminReports(limit = 50)
                         if (result.isSuccess) {
                             val reports = result.getOrDefault(emptyList())
+                            android.util.Log.d("ReportViewModel", "Loaded ${reports.size} admin reports")
                             _adminReports.value = reports
                             _reportListState.value = ReportListState.Success(reports)
                         } else {
-                            val errorMsg = result.exceptionOrNull()?.message ?: "Failed to load reports"
+                            val error = result.exceptionOrNull()
+                            val errorMsg = error?.message ?: "Failed to load reports"
+                            android.util.Log.e("ReportViewModel", "Error loading admin reports", error)
                             _errorMessage.value = errorMsg
                             _reportListState.value = ReportListState.Error(errorMsg)
                         }
                     }
                     UserRole.DRIVER -> {
+                        android.util.Log.d("ReportViewModel", "Fetching driver reports for: ${user.id}")
                         val result = reportRepository.getDriverReports(user.id, limit = 50)
                         if (result.isSuccess) {
                             val reports = result.getOrDefault(emptyList())
+                            android.util.Log.d("ReportViewModel", "Loaded ${reports.size} driver reports")
                             _driverReports.value = reports
                             _reportListState.value = ReportListState.Success(reports)
                         } else {
-                            val errorMsg = result.exceptionOrNull()?.message ?: "Failed to load reports"
+                            val error = result.exceptionOrNull()
+                            val errorMsg = error?.message ?: "Failed to load reports"
+                            android.util.Log.e("ReportViewModel", "Error loading driver reports", error)
                             _errorMessage.value = errorMsg
                             _reportListState.value = ReportListState.Error(errorMsg)
                         }
@@ -142,6 +152,7 @@ class ReportViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 val errorMsg = e.message ?: "An error occurred"
+                android.util.Log.e("ReportViewModel", "Exception loading reports", e)
                 _errorMessage.value = errorMsg
                 _reportListState.value = ReportListState.Error(errorMsg)
             } finally {
@@ -165,30 +176,41 @@ class ReportViewModel @Inject constructor(
             _isGenerating.value = true
             _generationSuccess.value = false
             
+            android.util.Log.d("ReportViewModel", "Generating report for user: ${user.id}, role: ${user.role}")
+            
             try {
                 when (user.role) {
                     UserRole.ADMIN -> {
+                        android.util.Log.d("ReportViewModel", "Calling generateMonthlyAdminReport")
                         val result = reportRepository.generateMonthlyAdminReport(year, month, user)
                         if (result.isSuccess) {
+                            android.util.Log.d("ReportViewModel", "Admin report generated successfully")
                             _currentAdminReport.value = result.getOrNull()
                             _generationSuccess.value = true
                             loadReports()
                         } else {
-                            _errorMessage.value = result.exceptionOrNull()?.message ?: "Failed to generate admin report"
+                            val error = result.exceptionOrNull()
+                            android.util.Log.e("ReportViewModel", "Failed to generate admin report", error)
+                            _errorMessage.value = error?.message ?: "Failed to generate admin report"
                         }
                     }
                     UserRole.DRIVER -> {
+                        android.util.Log.d("ReportViewModel", "Calling generateDriverReport")
                         val result = reportRepository.generateDriverReport(year, month, user)
                         if (result.isSuccess) {
+                            android.util.Log.d("ReportViewModel", "Driver report generated successfully")
                             _currentDriverReport.value = result.getOrNull()
                             _generationSuccess.value = true
                             loadReports()
                         } else {
-                            _errorMessage.value = result.exceptionOrNull()?.message ?: "Failed to generate driver report"
+                            val error = result.exceptionOrNull()
+                            android.util.Log.e("ReportViewModel", "Failed to generate driver report", error)
+                            _errorMessage.value = error?.message ?: "Failed to generate driver report"
                         }
                     }
                 }
             } catch (e: Exception) {
+                android.util.Log.e("ReportViewModel", "Exception generating report", e)
                 _errorMessage.value = e.message ?: "An error occurred"
             } finally {
                 _isGenerating.value = false
