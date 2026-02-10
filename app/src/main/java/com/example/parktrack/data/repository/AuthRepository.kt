@@ -146,6 +146,17 @@ suspend fun updateAssignedGate(userId: String, gate: String): Result<Unit> {
             Result.failure(e)
         }
     }
+
+    suspend fun updateFullName(userId: String, fullName: String): Result<Unit> {
+        return try {
+            db.collection("users").document(userId)
+                .update("fullName", fullName)
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
     
     fun logout() {
         auth.signOut()

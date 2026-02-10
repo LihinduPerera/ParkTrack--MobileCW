@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.parktrack.data.model.User
 import com.example.parktrack.data.model.UserRole
 import com.example.parktrack.data.repository.AuthRepository
+import com.example.parktrack.data.repository.ParkingSessionRepository
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
@@ -18,7 +19,8 @@ import javax.inject.Inject
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val firebaseAuth: FirebaseAuth
+    private val firebaseAuth: FirebaseAuth,
+    private val parkingSessionRepository: ParkingSessionRepository
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
@@ -232,6 +234,55 @@ fun updateProfileImage(uri: android.net.Uri, onSuccess: () -> Unit) {
             } catch (e: Exception) {
                 _authState.value = AuthState.Error(e.message ?: "Failed to delete account")
                 onError(e.message ?: "Failed to delete account")
+            }
+        }
+    }
+
+    /**
+     * Load driver statistics including total completed parking sessions
+     */
+    fun loadDriverStats() {
+        viewModelScope.launch {
+            val userId = _currentUser.value?.id
+            if (userId != null) {
+                try {
+                    val result = parkingSessionRepository.getTotalCompletedSessionsCount(userId)
+                    if (result.isSuccess) {
+                        val totalParks = result.getOrDefault(0)
+                        // Update the user with the calculated total parks
+                        _currentUser.value = _currentUser.value?.copy(totalParks = totalParks)
+                    }
+                } catch (e: Exception) {
+                    // Handle error silently - keep existing value
+                }
+            }
+        }
+    }
+
+    /**
+     * Update user's full name
+     */
+    fun updateFullName(newFullName: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val userId = _currentUser.value?.id
+                if (userId != null) {
+                    val result = authRepository.updateFullName(userId, newFullName)
+                    if (result.isSuccess) {
+                        // Refresh user data
+                        val userData = authRepository.getUserData(userId)
+                        if (userData.isSuccess) {
+                            _currentUser.value = userData.getOrNull()
+                        }
+                        onSuccess()
+                    } else {
+                        onError(result.exceptionOrNull()?.message ?: "Failed to update full name")
+                    }
+                } else {
+                    onError("User not found")
+                }
+            } catch (e: Exception) {
+                onError(e.message ?: "Failed to update full name")
             }
         }
     }

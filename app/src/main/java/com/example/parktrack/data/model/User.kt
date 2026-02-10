@@ -12,6 +12,9 @@ data class User(
     val createdAt: Long = System.currentTimeMillis(),
     val profileImageUrl: String = "",
     val isVerified: Boolean = false,
+    // Driver statistics
+    val totalParks: Int = 0,
+    val valetPoints: Int = 0,
     // Admin-specific fields
     val badgeId: String = "",
     val assignedGate: String = "",

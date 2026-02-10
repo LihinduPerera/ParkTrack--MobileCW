@@ -546,12 +546,7 @@ private fun ActionButtonsCard(
                     } else {
                         Icon(Icons.Default.Upgrade, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        val nextTier = when (driver.subscriptionTier) {
-                            SubscriptionTier.NORMAL -> "Gold"
-                            SubscriptionTier.GOLD -> "Platinum"
-                            else -> ""
-                        }
-                        Text("Upgrade to $nextTier Tier")
+                        Text("Upgrade Tier")
                     }
                 }
             }
@@ -932,13 +927,15 @@ private fun TierUpgradeDialog(
     onConfirm: (SubscriptionTier, String, String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val nextTier = when (currentTier) {
-        SubscriptionTier.NORMAL -> SubscriptionTier.GOLD
-        SubscriptionTier.GOLD -> SubscriptionTier.PLATINUM
-        SubscriptionTier.PLATINUM -> SubscriptionTier.PLATINUM
+    // Get available upgrade options based on current tier
+    val availableTiers = when (currentTier) {
+        SubscriptionTier.NORMAL -> listOf(SubscriptionTier.GOLD, SubscriptionTier.PLATINUM)
+        SubscriptionTier.GOLD -> listOf(SubscriptionTier.PLATINUM)
+        SubscriptionTier.PLATINUM -> emptyList()
     }
 
-    val upgradeFee = calculateTierUpgradeFee(currentTier, nextTier)
+    var selectedTier by remember { mutableStateOf(availableTiers.firstOrNull() ?: currentTier) }
+    val upgradeFee = calculateTierUpgradeFee(currentTier, selectedTier)
     var paymentMethod by remember { mutableStateOf("CASH") }
     var notes by remember { mutableStateOf("") }
 
@@ -957,21 +954,36 @@ private fun TierUpgradeDialog(
                     style = MaterialTheme.typography.bodyMedium
                 )
 
-                Text(
-                    text = "New Tier: ${nextTier.name}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Divider()
 
+                // Select Target Tier
+                Text(
+                    text = "Select Target Tier",
+                    style = MaterialTheme.typography.labelMedium
+                )
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    availableTiers.forEach { tier ->
+                        val fee = calculateTierUpgradeFee(currentTier, tier)
+                        TierSelectionChip(
+                            tier = tier,
+                            fee = fee,
+                            selected = selectedTier == tier,
+                            onClick = { selectedTier = tier }
+                        )
+                    }
+                }
+
+                Divider()
+
+                // Display selected upgrade fee
                 Text(
                     text = "Upgrade Fee: Rs. ${String.format("%.2f", upgradeFee)}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.success
                 )
-
-                Divider()
 
                 // Payment Method Selection
                 Text(
@@ -1005,8 +1017,8 @@ private fun TierUpgradeDialog(
         },
         confirmButton = {
             Button(
-                onClick = { onConfirm(nextTier, paymentMethod, notes) },
-                enabled = currentTier != nextTier
+                onClick = { onConfirm(selectedTier, paymentMethod, notes) },
+                enabled = currentTier != selectedTier && availableTiers.isNotEmpty()
             ) {
                 Text("Confirm Upgrade")
             }
@@ -1017,6 +1029,59 @@ private fun TierUpgradeDialog(
             }
         }
     )
+}
+
+@Composable
+private fun TierSelectionChip(
+    tier: SubscriptionTier,
+    fee: Double,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val (backgroundColor, textColor) = when (tier) {
+        SubscriptionTier.NORMAL -> Color(0xFFE0E0E0) to Color(0xFF424242)
+        SubscriptionTier.GOLD -> Color(0xFFFFF9C4) to Color(0xFFF57F17)
+        SubscriptionTier.PLATINUM -> Color(0xFFECEFF1) to Color(0xFF455A64)
+    }
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = if (selected) backgroundColor else Color.Transparent,
+        border = androidx.compose.foundation.BorderStroke(
+            width = 2.dp,
+            color = if (selected) textColor else Color.Gray.copy(alpha = 0.3f)
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                RadioButton(
+                    selected = selected,
+                    onClick = onClick
+                )
+                Text(
+                    text = tier.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
+                )
+            }
+            Text(
+                text = "Rs. ${String.format("%.0f", fee)}",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
 }
 
 // Sealed class for payment dialog data

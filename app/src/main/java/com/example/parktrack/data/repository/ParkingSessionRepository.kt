@@ -186,4 +186,16 @@ class ParkingSessionRepository @Inject constructor(
             else -> "${mins}m"
         }
     }
+    
+    /**
+     * Get total completed sessions count for a driver
+     */
+    suspend fun getTotalCompletedSessionsCount(driverId: String): Result<Int> = runCatching {
+        firestore.collection(sessionsCollection)
+            .whereEqualTo("driverId", driverId)
+            .whereEqualTo("status", "COMPLETED")
+            .get()
+            .await()
+            .size()
+    }
 }
