@@ -60,6 +60,19 @@ data class ParkingCharge(
     }
 
     /**
+     * Check if charge should be marked as overdue based on days since parking session
+     */
+    fun shouldBeOverdue(): Boolean {
+        if (isPaid || finalCharge <= 0) return false
+        
+        val now = System.currentTimeMillis()
+        val sessionEndTime = exitTime?.toDate()?.time ?: entryTime?.toDate()?.time ?: now
+        val daysSinceSession = (now - sessionEndTime) / (24 * 60 * 60 * 1000)
+        
+        return daysSinceSession >= 7 // Mark as overdue after 7 days
+    }
+
+    /**
      * Get formatted amount string
      */
     fun getFormattedAmount(): String {

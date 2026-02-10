@@ -149,3 +149,31 @@ fun calculateSessionCost(session: ParkingSession, tier: MembershipTier): Double 
     val rawCost = session.hours * tier.hourlyRate
     return minOf(rawCost, tier.dailyCap)
 }
+
+/**
+ * Calculate overdue charges for unpaid parking sessions
+ */
+fun calculateOverdueCharge(
+    finalCharge: Double,
+    daysOverdue: Int,
+    overdueRate: Double = 0.05 // 5% per day
+): Double {
+    return finalCharge * overdueRate * daysOverdue
+}
+
+/**
+ * Get payment status with overdue logic
+ */
+fun getPaymentStatusWithOverdue(
+    isPaid: Boolean,
+    finalCharge: Double,
+    daysSinceSession: Int,
+    overdueThreshold: Int = 7
+): String {
+    return when {
+        isPaid -> "PAID"
+        finalCharge <= 0 -> "FREE"
+        daysSinceSession >= overdueThreshold -> "OVERDUE"
+        else -> "UNPAID"
+    }
+}

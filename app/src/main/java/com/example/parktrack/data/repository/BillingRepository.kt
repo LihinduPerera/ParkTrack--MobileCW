@@ -149,10 +149,10 @@ class BillingRepository @Inject constructor(
     }
 
     /**
-     * Get unpaid charges for a driver
+     * Get unpaid charges for a driver with overdue detection
      */
     suspend fun getUnpaidCharges(driverId: String): Result<List<ParkingCharge>> = runCatching {
-        firestore.collection(chargesCollection)
+        val charges = firestore.collection(chargesCollection)
             .whereEqualTo("driverId", driverId)
             .whereEqualTo("isPaid", false)
             .whereGreaterThan("finalCharge", 0.0)
@@ -160,6 +160,18 @@ class BillingRepository @Inject constructor(
             .get()
             .await()
             .toObjects(ParkingCharge::class.java)
+
+        // Update overdue status for each charge
+        charges.forEach { charge ->
+            if (charge.shouldBeOverdue() && !charge.isOverdue) {
+                val daysSinceSession = calculateDaysSinceSession(charge)
+                if (daysSinceSession >= 7) {
+                    markChargeAsOverdue(charge.id, daysSinceSession)
+                }
+            }
+        }
+
+        charges
     }
 
     /**
@@ -634,6 +646,15 @@ class BillingRepository @Inject constructor(
     }
 
     /**
+     * Calculate days since parking session ended
+     */
+    private fun calculateDaysSinceSession(charge: ParkingCharge): Int {
+        val now = System.currentTimeMillis()
+        val sessionEndTime = charge.exitTime?.toDate()?.time ?: charge.entryTime?.toDate()?.time ?: now
+        return ((now - sessionEndTime) / (24 * 60 * 60 * 1000)).toInt()
+    }
+
+    /**
      * Mark charge as overdue (for cron job or periodic check)
      */
     suspend fun markChargeAsOverdue(chargeId: String, overdueDays: Int): Result<Unit> = runCatching {
@@ -642,7 +663,7 @@ class BillingRepository @Inject constructor(
             ?: throw Exception("Charge not found")
         
         if (!charge.isPaid && charge.finalCharge > 0) {
-            val overdueCharge = charge.finalCharge * 0.05 * overdueDays // 5% per day
+            val overdueCharge = calculateOverdueCharge(charge.finalCharge, overdueDays)
             firestore.collection(chargesCollection).document(chargeId).update(mapOf(
                 "isOverdue" to true,
                 "overdueDays" to overdueDays,
@@ -650,5 +671,12 @@ class BillingRepository @Inject constructor(
                 "updatedAt" to Timestamp.now()
             )).await()
         }
+    }
+
+    /**
+     * Calculate overdue charge using billing logic
+     */
+    private fun calculateOverdueCharge(finalCharge: Double, daysOverdue: Int): Double {
+        return finalCharge * 0.05 * daysOverdue // 5% per day
     }
 }

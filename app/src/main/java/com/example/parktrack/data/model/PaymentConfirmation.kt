@@ -47,11 +47,11 @@ data class TierUpgradeRecord(
 /**
  * Extension function to calculate upgrade fee between tiers
  */
-fun calculateTierUpgradeFee(fromTier: SubscriptionTier, toTier: SubscriptionTier): Double {
-    return when (fromTier to toTier) {
-        SubscriptionTier.NORMAL to SubscriptionTier.GOLD -> 500.0 // Example fee
-        SubscriptionTier.NORMAL to SubscriptionTier.PLATINUM -> 1000.0 // Example fee
-        SubscriptionTier.GOLD to SubscriptionTier.PLATINUM -> 500.0 // Example fee
+fun calculateTierUpgradeFee(currentTier: SubscriptionTier, newTier: SubscriptionTier): Double {
+    return when {
+        currentTier == SubscriptionTier.NORMAL && newTier == SubscriptionTier.GOLD -> 500.0
+        currentTier == SubscriptionTier.NORMAL && newTier == SubscriptionTier.PLATINUM -> 1000.0
+        currentTier == SubscriptionTier.GOLD && newTier == SubscriptionTier.PLATINUM -> 700.0
         else -> 0.0 // No fee for downgrades or same tier
     }
 }
