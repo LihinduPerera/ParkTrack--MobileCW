@@ -15,6 +15,6 @@
 local.properties
 
 # Environment files (except examples)
-.env
-.env.local
 .env.*.local
+config.bat
+node_modules

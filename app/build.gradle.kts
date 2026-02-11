@@ -9,11 +9,15 @@ plugins {
     id("kotlin-kapt")
 }
 
-// Load local.properties
-val localProperties = Properties()
+// Load from .env file first, fallback to local.properties
+val envProperties = Properties()
+val envFile = rootProject.file(".env")
 val localPropertiesFile = rootProject.file("local.properties")
-if (localPropertiesFile.exists()) {
-    localPropertiesFile.inputStream().use { localProperties.load(it) }
+
+if (envFile.exists()) {
+    envFile.inputStream().use { envProperties.load(it) }
+} else if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { envProperties.load(it) }
 }
 
 android {
@@ -29,11 +33,11 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
-        // Cloudinary credentials from local.properties
-        buildConfigField("String", "CLOUDINARY_CLOUD_NAME", "\"${localProperties.getProperty("CLOUDINARY_CLOUD_NAME", "")}\"")
-        buildConfigField("String", "CLOUDINARY_API_KEY", "\"${localProperties.getProperty("CLOUDINARY_API_KEY", "")}\"")
-        buildConfigField("String", "CLOUDINARY_API_SECRET", "\"${localProperties.getProperty("CLOUDINARY_API_SECRET", "")}\"")
-        buildConfigField("String", "CLOUDINARY_UPLOAD_PRESET", "\"${localProperties.getProperty("CLOUDINARY_UPLOAD_PRESET", "profile_pictures")}\"")
+        // Cloudinary credentials from .env or local.properties
+        buildConfigField("String", "CLOUDINARY_CLOUD_NAME", "\"${envProperties.getProperty("CLOUDINARY_CLOUD_NAME", "")}\"")
+        buildConfigField("String", "CLOUDINARY_API_KEY", "\"${envProperties.getProperty("CLOUDINARY_API_KEY", "")}\"")
+        buildConfigField("String", "CLOUDINARY_API_SECRET", "\"${envProperties.getProperty("CLOUDINARY_API_SECRET", "")}\"")
+        buildConfigField("String", "CLOUDINARY_UPLOAD_PRESET", "\"${envProperties.getProperty("CLOUDINARY_UPLOAD_PRESET", "profile_pictures")}\"")
     }
 
     buildTypes {
