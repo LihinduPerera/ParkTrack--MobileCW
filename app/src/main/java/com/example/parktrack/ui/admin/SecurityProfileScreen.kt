@@ -39,12 +39,20 @@ fun SecurityProfileScreen(
 ) {
 
 val user by authViewModel.currentUser.collectAsState()
+    val isUploading by authViewModel.isUploadingProfileImage.collectAsState()
     val context = LocalContext.current
     val currentUser = user // Create local variable for smart cast
 
     // Refresh user data when screen is displayed
     LaunchedEffect(Unit) {
         authViewModel.refreshCurrentUser()
+    }
+
+    // Helper function to add transformation to Cloudinary URL
+    fun getTransformedImageUrl(url: String?): String? {
+        if (url.isNullOrBlank() || !url.contains("cloudinary.com")) return url
+        // Insert transformation before /upload/
+        return url.replace("/upload/", "/upload/c_fill,w_500,h_500,q_auto,f_auto/")
     }
     
     // Gate assignment dialog state
@@ -56,9 +64,15 @@ val user by authViewModel.currentUser.collectAsState()
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            authViewModel.updateProfileImage(it) {
-                Toast.makeText(context, "Admin Profile Updated!", Toast.LENGTH_SHORT).show()
-            }
+            authViewModel.updateProfileImage(
+                it,
+                onSuccess = {
+                    Toast.makeText(context, "Admin Profile Updated!", Toast.LENGTH_SHORT).show()
+                },
+                onError = { error ->
+                    Toast.makeText(context, "Upload failed: $error", Toast.LENGTH_LONG).show()
+                }
+            )
         }
     }
 
@@ -83,21 +97,38 @@ val user by authViewModel.currentUser.collectAsState()
         ) {
             // 2. Profile Image Section
             Box(contentAlignment = Alignment.BottomEnd) {
-                AsyncImage(
-                    model = user?.profileImageUrl ?: android.R.drawable.ic_menu_gallery,
-                    contentDescription = "Admin Photo",
+                Box(
                     modifier = Modifier
                         .size(120.dp)
                         .clip(CircleShape)
                         .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
-                    contentScale = ContentScale.Crop
-                )
+                    contentAlignment = Alignment.Center
+                ) {
+                    AsyncImage(
+                        model = getTransformedImageUrl(user?.profileImageUrl) ?: android.R.drawable.ic_menu_gallery,
+                        contentDescription = "Admin Photo",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                    
+                    if (isUploading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(60.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 4.dp
+                        )
+                    }
+                }
 
                 IconButton(
                     onClick = { launcher.launch("image/*") },
+                    enabled = !isUploading,
                     modifier = Modifier
                         .size(32.dp)
-                        .background(MaterialTheme.colorScheme.primary, CircleShape)
+                        .background(
+                            if (isUploading) Color.Gray else MaterialTheme.colorScheme.primary,
+                            CircleShape
+                        )
                 ) {
                     Icon(
                         Icons.Default.Edit,

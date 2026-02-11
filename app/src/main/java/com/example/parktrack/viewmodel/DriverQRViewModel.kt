@@ -101,7 +101,7 @@ class DriverQRViewModel @Inject constructor(
     /**
      * Load driver's vehicles
      */
-    private fun loadVehicles() {
+    fun loadVehicles() {
         viewModelScope.launch {
             val userId = auth.currentUser?.uid ?: return@launch
             
@@ -178,12 +178,9 @@ class DriverQRViewModel @Inject constructor(
      * Show vehicle selection dialog before generating QR
      */
     fun showVehicleSelection() {
-        if (_vehicles.value.isEmpty()) {
-            // No vehicles registered, reload them
-            loadVehicles()
-        } else {
-            _showVehicleSelection.value = true
-        }
+        // Always reload vehicles to get the latest list (e.g., after adding new vehicles)
+        loadVehicles()
+        _showVehicleSelection.value = true
     }
     
     /**

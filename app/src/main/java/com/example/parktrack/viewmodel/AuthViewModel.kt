@@ -32,6 +32,9 @@ class AuthViewModel @Inject constructor(
     private val _isCheckingAuth = MutableStateFlow(true)
     val isCheckingAuth: StateFlow<Boolean> = _isCheckingAuth.asStateFlow()
 
+    private val _isUploadingProfileImage = MutableStateFlow(false)
+    val isUploadingProfileImage: StateFlow<Boolean> = _isUploadingProfileImage.asStateFlow()
+
     init {
         checkCurrentUser()
     }
@@ -146,8 +149,9 @@ class AuthViewModel @Inject constructor(
             }
     }
 
-fun updateProfileImage(uri: android.net.Uri, onSuccess: () -> Unit) {
+fun updateProfileImage(uri: android.net.Uri, onSuccess: () -> Unit, onError: (String) -> Unit = {}) {
         viewModelScope.launch {
+            _isUploadingProfileImage.value = true
             try {
                 val result = authRepository.updateProfileImage(_currentUser.value?.id ?: "", uri)
                 if (result.isSuccess) {
@@ -159,9 +163,13 @@ fun updateProfileImage(uri: android.net.Uri, onSuccess: () -> Unit) {
                         }
                     }
                     onSuccess()
+                } else {
+                    onError(result.exceptionOrNull()?.message ?: "Failed to upload image")
                 }
             } catch (e: Exception) {
-                // Handle error
+                onError(e.message ?: "Failed to upload image")
+            } finally {
+                _isUploadingProfileImage.value = false
             }
         }
     }
@@ -270,6 +278,8 @@ fun updateProfileImage(uri: android.net.Uri, onSuccess: () -> Unit) {
                     val userData = authRepository.getUserData(userId)
                     if (userData.isSuccess) {
                         _currentUser.value = userData.getOrNull()
+                        // Reload driver stats after refreshing user (totalParks is calculated, not stored)
+                        loadDriverStats()
                     }
                 }
             } catch (e: Exception) {

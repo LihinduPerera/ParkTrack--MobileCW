@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,6 +7,17 @@ plugins {
     id("com.google.gms.google-services")
     alias(libs.plugins.hilt)
     id("kotlin-kapt")
+}
+
+// Load from .env file first, fallback to local.properties
+val envProperties = Properties()
+val envFile = rootProject.file(".env")
+val localPropertiesFile = rootProject.file("local.properties")
+
+if (envFile.exists()) {
+    envFile.inputStream().use { envProperties.load(it) }
+} else if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { envProperties.load(it) }
 }
 
 android {
@@ -19,6 +32,12 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        
+        // Cloudinary credentials from .env or local.properties
+        buildConfigField("String", "CLOUDINARY_CLOUD_NAME", "\"${envProperties.getProperty("CLOUDINARY_CLOUD_NAME", "")}\"")
+        buildConfigField("String", "CLOUDINARY_API_KEY", "\"${envProperties.getProperty("CLOUDINARY_API_KEY", "")}\"")
+        buildConfigField("String", "CLOUDINARY_API_SECRET", "\"${envProperties.getProperty("CLOUDINARY_API_SECRET", "")}\"")
+        buildConfigField("String", "CLOUDINARY_UPLOAD_PRESET", "\"${envProperties.getProperty("CLOUDINARY_UPLOAD_PRESET", "profile_pictures")}\"")
     }
 
     buildTypes {
@@ -116,4 +135,7 @@ dependencies {
     
     // DataStore for preferences
     implementation("androidx.datastore:datastore-preferences:1.0.0")
+    
+    // Cloudinary for image upload
+    implementation("com.cloudinary:cloudinary-android:2.5.0")
 }
