@@ -27,6 +27,9 @@ class AdminDashboardViewModel @Inject constructor() : ViewModel() {
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
     private val _totalScansToday = MutableStateFlow(0)
     val totalScansToday: StateFlow<Int> = _totalScansToday.asStateFlow()
 
@@ -129,10 +132,11 @@ class AdminDashboardViewModel @Inject constructor() : ViewModel() {
         _entriesToday.value = entries
         _exitsToday.value = exits
         _last6hChart.value = hourBuckets
-        val enrichedSessions = sessions.sortedByDescending { it.entryTime?.toDate()?.time ?: 0L }.take(5).map { session ->
+        val enrichedSessions = sessions.sortedByDescending { it.entryTime?.toDate()?.time ?: 0L }.take(10).map { session ->
             enrichSession(session)
         }
         _recentScans.value = enrichedSessions
+        _isLoading.value = false
     }
 
     private suspend fun enrichSession(session: ParkingSession): EnrichedParkingSession {
@@ -158,6 +162,7 @@ class AdminDashboardViewModel @Inject constructor() : ViewModel() {
             driverId = session.driverId,
             driverName = session.driverName,
             driverPhoneNumber = user?.phoneNumber ?: "",
+            driverProfileImageUrl = user?.profileImageUrl ?: "",
             vehicleNumber = session.vehicleNumber,
             vehicleModel = vehicle?.vehicleModel ?: "",
             entryTime = session.entryTime,
