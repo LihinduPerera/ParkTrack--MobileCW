@@ -7,6 +7,7 @@ data class EnrichedParkingSession(
     val driverId: String = "",
     val driverName: String = "",
     val driverPhoneNumber: String = "",
+    val driverProfileImageUrl: String = "",
     val vehicleNumber: String = "",
     val vehicleModel: String = "",
     val entryTime: Timestamp? = null,
