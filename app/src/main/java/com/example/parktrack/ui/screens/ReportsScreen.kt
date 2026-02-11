@@ -1,6 +1,7 @@
 package com.example.parktrack.ui.screens
 
 import android.content.Context
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -48,13 +49,16 @@ fun ReportsScreen(
     var showDriverReportDetail by remember { mutableStateOf(false) }
     var selectedAdminReport by remember { mutableStateOf<ParkingReport?>(null) }
     var selectedDriverReport by remember { mutableStateOf<DriverReport?>(null) }
+    var showPdfSuccessDialog by remember { mutableStateOf(false) }
+    var generatedPdfUri by remember { mutableStateOf<Uri?>(null) }
 
     // Handle PDF generation success
     LaunchedEffect(pdfGenerationState) {
         when (val state = pdfGenerationState) {
             is PdfGenerationState.Success -> {
-                // PDF generated successfully, optionally auto-share
-                viewModel.sharePdf(context, state.uri, !isAdmin)
+                // PDF generated successfully, show success dialog
+                generatedPdfUri = state.uri
+                showPdfSuccessDialog = true
                 viewModel.clearPdfGenerationState()
             }
             is PdfGenerationState.Error -> {
@@ -211,6 +215,26 @@ fun ReportsScreen(
             title = "Error",
             message = errorMessage ?: "Unknown error",
             onDismiss = { viewModel.clearError() }
+        )
+    }
+
+    // PDF Success Dialog
+    if (showPdfSuccessDialog && generatedPdfUri != null) {
+        PdfSuccessDialog(
+            onDismiss = { 
+                showPdfSuccessDialog = false
+                generatedPdfUri = null
+            },
+            onShare = {
+                viewModel.sharePdf(context, generatedPdfUri!!, !isAdmin)
+                showPdfSuccessDialog = false
+                generatedPdfUri = null
+            },
+            onOpen = {
+                viewModel.openPdf(context, generatedPdfUri!!)
+                showPdfSuccessDialog = false
+                generatedPdfUri = null
+            }
         )
     }
 }
@@ -942,4 +966,47 @@ private fun formatDuration(minutes: Long): String {
         hours > 0 -> "${hours}h"
         else -> "${mins}m"
     }
+}
+
+@Composable
+private fun PdfSuccessDialog(
+    onDismiss: () -> Unit,
+    onShare: () -> Unit,
+    onOpen: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = null,
+                tint = Color(0xFF4CAF50),
+                modifier = Modifier.size(48.dp)
+            )
+        },
+        title = { Text("PDF Generated Successfully") },
+        text = { Text("Your report has been generated. What would you like to do?") },
+        confirmButton = {
+            Button(onClick = onOpen) {
+                Icon(
+                    imageVector = Icons.Default.OpenInNew,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Open")
+            }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onShare) {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Share")
+            }
+        }
+    )
 }

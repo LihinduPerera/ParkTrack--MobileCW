@@ -1,7 +1,9 @@
 package com.example.parktrack.data.repository
 
+import android.net.Uri
 import com.example.parktrack.data.model.User
 import com.example.parktrack.data.model.UserRole
+import com.example.parktrack.utils.CloudinaryService
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.UserProfileChangeRequest
@@ -11,7 +13,8 @@ import javax.inject.Inject
 
 class AuthRepository @Inject constructor(
     private val auth: FirebaseAuth,
-    private val db: FirebaseFirestore
+    private val db: FirebaseFirestore,
+    private val cloudinaryService: CloudinaryService
 ) {
     val currentUser: FirebaseUser? get() = auth.currentUser
     
@@ -133,17 +136,27 @@ suspend fun updateAssignedGate(userId: String, gate: String): Result<Unit> {
         }
     }
     
-    suspend fun updateProfileImage(userId: String, uri: android.net.Uri): Result<String> {
+    suspend fun updateProfileImage(userId: String, uri: Uri): Result<String> {
         return try {
-            // For now, just update the URL in Firestore
-            // In a real implementation, you would upload to Firebase Storage first
-            val imageUrl = uri.toString() // Placeholder - should upload to Storage
+            // 1. Upload image to Cloudinary
+            val imageUrl = cloudinaryService.uploadProfileImage(userId, uri)
+            
+            // 2. Update the profile image URL in Firestore
             db.collection("users").document(userId)
                 .update("profileImageUrl", imageUrl)
                 .await()
+            
+            // 3. Also update Firebase Auth profile photo
+            auth.currentUser?.let { user ->
+                val profileUpdates = UserProfileChangeRequest.Builder()
+                    .setPhotoUri(Uri.parse(imageUrl))
+                    .build()
+                user.updateProfile(profileUpdates).await()
+            }
+            
             Result.success(imageUrl)
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception("Failed to update profile image: ${e.message}"))
         }
     }
 

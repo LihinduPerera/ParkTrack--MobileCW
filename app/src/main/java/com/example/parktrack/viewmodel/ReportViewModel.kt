@@ -304,6 +304,13 @@ class ReportViewModel @Inject constructor(
     }
 
     /**
+     * Open the generated PDF with default PDF viewer
+     */
+    fun openPdf(context: Context, uri: Uri) {
+        PdfGenerator.openPdf(context, uri)
+    }
+
+    /**
      * Clear PDF generation state
      */
     fun clearPdfGenerationState() {

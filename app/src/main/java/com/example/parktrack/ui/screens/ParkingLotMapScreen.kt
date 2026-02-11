@@ -164,7 +164,10 @@ LazyColumn(
                             items(parkingLots) { lot ->
                                 ParkingLotCard(
                                     lot = lot,
-                                    onClick = { selectedLotId = lot.id },
+                                    onClick = {
+                                        selectedLotId = lot.id
+                                        selectedTabIndex = 0
+                                    },
                                     onNavigateClick = {
                                         NavigationUtils.navigateToParkingLot(context, lot)
                                     }
