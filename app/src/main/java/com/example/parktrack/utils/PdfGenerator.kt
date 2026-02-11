@@ -167,9 +167,32 @@ object PdfGenerator {
             type = "application/pdf"
             putExtra(Intent.EXTRA_STREAM, uri)
             putExtra(Intent.EXTRA_SUBJECT, subject)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(shareIntent, "Share Report"))
+        
+        // Grant permissions to all potential receiving apps
+        val chooser = Intent.createChooser(shareIntent, "Share Report")
+        chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        
+        context.startActivity(chooser)
+    }
+
+    /**
+     * Open the generated PDF with default PDF viewer
+     */
+    fun openPdf(context: Context, uri: Uri) {
+        val openIntent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/pdf")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NO_HISTORY)
+        }
+        
+        try {
+            context.startActivity(openIntent)
+        } catch (e: Exception) {
+            // If no PDF viewer is installed, show a toast or fallback
+            val chooser = Intent.createChooser(openIntent, "Open PDF")
+            context.startActivity(chooser)
+        }
     }
 
     private fun addHeader(document: Document, title: String, color: DeviceRgb) {

@@ -270,6 +270,8 @@ fun updateProfileImage(uri: android.net.Uri, onSuccess: () -> Unit) {
                     val userData = authRepository.getUserData(userId)
                     if (userData.isSuccess) {
                         _currentUser.value = userData.getOrNull()
+                        // Reload driver stats after refreshing user (totalParks is calculated, not stored)
+                        loadDriverStats()
                     }
                 }
             } catch (e: Exception) {

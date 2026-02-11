@@ -48,9 +48,9 @@ fun ProfileScreen(
     val user by authViewModel.currentUser.collectAsState()
     val context = LocalContext.current
 
-    // Load driver statistics when screen loads
+    // Load driver statistics and refresh user data when screen loads
     LaunchedEffect(Unit) {
-        authViewModel.loadDriverStats()
+        authViewModel.refreshCurrentUser()
     }
 
     val launcher = rememberLauncherForActivityResult(
