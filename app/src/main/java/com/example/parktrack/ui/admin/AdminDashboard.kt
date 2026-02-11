@@ -20,6 +20,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -29,6 +30,9 @@ import com.example.parktrack.ui.admin.components.StatsRow
 import com.example.parktrack.viewmodel.AdminDashboardViewModel
 import com.example.parktrack.viewmodel.AdminQRHistoryViewModel
 import com.example.parktrack.data.model.EnrichedParkingSession
+import coil.compose.AsyncImage
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.layout.ContentScale
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -55,6 +59,7 @@ fun AdminDashboard(
     val chart by viewModel.last6hChart.collectAsStateWithLifecycle()
     val refreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val isInitializingData by viewModel.isInitializingData.collectAsStateWithLifecycle()
+    val isDashboardLoading by viewModel.isLoading.collectAsStateWithLifecycle()
 
     val pullState = rememberPullRefreshState(
         refreshing = refreshing,
@@ -170,7 +175,14 @@ fun AdminDashboard(
                                 .fillMaxSize()
                                 .padding(8.dp)
                         ) {
-                            if (recent.isEmpty()) {
+                            if (isDashboardLoading) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator()
+                                }
+                            } else if (recent.isEmpty()) {
                                 Box(
                                     modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center
@@ -195,35 +207,52 @@ fun AdminDashboard(
                                                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                                             )
                                         ) {
-                                            Column(Modifier.padding(8.dp)) {
-                                                val driverInfo = if (scan.driverPhoneNumber.isNotEmpty()) {
-                                                    "${scan.driverName} - ${scan.driverPhoneNumber}"
-                                                } else {
-                                                    scan.driverName
-                                                }
-                                                val vehicleInfo = if (scan.vehicleModel.isNotEmpty()) {
-                                                    "${scan.vehicleNumber} - ${scan.vehicleModel}"
-                                                } else {
-                                                    scan.vehicleNumber
-                                                }
+                                            Row(
+                                                modifier = Modifier.padding(8.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                // Driver Profile Image
+                                                AsyncImage(
+                                                    model = scan.driverProfileImageUrl.takeIf { it.isNotBlank() } ?: Icons.Default.AccountCircle,
+                                                    contentDescription = "Driver Photo",
+                                                    modifier = Modifier
+                                                        .size(40.dp)
+                                                        .clip(CircleShape),
+                                                    contentScale = ContentScale.Crop
+                                                )
                                                 
-                                                Text(
-                                                    driverInfo, 
-                                                    style = MaterialTheme.typography.bodySmall
-                                                )
-                                                Text(
-                                                    vehicleInfo, 
-                                                    style = MaterialTheme.typography.bodySmall
-                                                )
-                                                Text(
-                                                    scan.status, 
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = when(scan.status) {
-                                                        "ACTIVE" -> MaterialTheme.colorScheme.primary
-                                                        "COMPLETED" -> MaterialTheme.colorScheme.secondary
-                                                        else -> MaterialTheme.colorScheme.onSurface
+                                                Spacer(modifier = Modifier.width(12.dp))
+                                                
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    val driverInfo = if (scan.driverPhoneNumber.isNotEmpty()) {
+                                                        "${scan.driverName} - ${scan.driverPhoneNumber}"
+                                                    } else {
+                                                        scan.driverName
                                                     }
-                                                )
+                                                    val vehicleInfo = if (scan.vehicleModel.isNotEmpty()) {
+                                                        "${scan.vehicleNumber} - ${scan.vehicleModel}"
+                                                    } else {
+                                                        scan.vehicleNumber
+                                                    }
+                                                    
+                                                    Text(
+                                                        driverInfo, 
+                                                        style = MaterialTheme.typography.bodySmall
+                                                    )
+                                                    Text(
+                                                        vehicleInfo, 
+                                                        style = MaterialTheme.typography.bodySmall
+                                                    )
+                                                    Text(
+                                                        scan.status, 
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = when(scan.status) {
+                                                            "ACTIVE" -> MaterialTheme.colorScheme.primary
+                                                            "COMPLETED" -> MaterialTheme.colorScheme.secondary
+                                                            else -> MaterialTheme.colorScheme.onSurface
+                                                        }
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -429,28 +458,44 @@ fun QRScanHistoryCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Driver Info
+            // Driver Info with Profile Image
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Driver",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.Top) {
+                    // Driver Profile Image
+                    AsyncImage(
+                        model = scan.driverProfileImageUrl.takeIf { it.isNotBlank() } 
+                            ?: Icons.Default.AccountCircle,
+                        contentDescription = "Driver Photo",
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
                     )
-                    Text(
-                        text = scan.driverName.ifEmpty { "Unknown" },
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    if (scan.driverPhoneNumber.isNotEmpty()) {
+                    
+                    Spacer(modifier = Modifier.width(12.dp))
+                    
+                    Column {
                         Text(
-                            text = scan.driverPhoneNumber,
-                            style = MaterialTheme.typography.bodySmall,
+                            text = "Driver",
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Text(
+                            text = scan.driverName.ifEmpty { "Unknown" },
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        if (scan.driverPhoneNumber.isNotEmpty()) {
+                            Text(
+                                text = scan.driverPhoneNumber,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
 

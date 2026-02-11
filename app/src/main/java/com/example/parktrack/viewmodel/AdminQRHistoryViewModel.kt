@@ -88,6 +88,7 @@ class AdminQRHistoryViewModel @Inject constructor() : ViewModel() {
             driverId = session.driverId,
             driverName = session.driverName,
             driverPhoneNumber = user?.phoneNumber ?: "",
+            driverProfileImageUrl = user?.profileImageUrl ?: "",
             vehicleNumber = session.vehicleNumber,
             vehicleModel = vehicle?.vehicleModel ?: "",
             entryTime = session.entryTime,
