@@ -117,23 +117,25 @@ class AdminBillingViewModel @Inject constructor(
     }
 
     private var chargesCollectionJob: kotlinx.coroutines.Job? = null
+    private var invoicesCollectionJob: kotlinx.coroutines.Job? = null
+    private var paymentConfirmationsJob: kotlinx.coroutines.Job? = null
 
     /**
-     * Load complete billing information for a driver with real-time updates
-     * Includes proper categorization of unpaid, overdue, and paid charges
+     * FIXED: Load complete billing information for a driver with real-time updates
+     * Now observes invoices and payment confirmations in real-time too
      */
     fun loadDriverBillingInfo(driver: User) {
-        // Cancel any existing observation
+        // Cancel any existing observations
         chargesCollectionJob?.cancel()
+        invoicesCollectionJob?.cancel()
+        paymentConfirmationsJob?.cancel()
         
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
 
             try {
-                // Load static data in parallel
-                val invoicesResult = billingRepository.getDriverInvoices(driver.id)
-                val paymentConfirmationsResult = billingRepository.getDriverPaymentConfirmations(driver.id)
+                // Load tier upgrade records once (these don't change frequently)
                 val tierUpgradeRecordsResult = billingRepository.getDriverTierUpgradeRecords(driver.id)
 
                 // Start real-time observation of charges
@@ -156,20 +158,45 @@ class AdminBillingViewModel @Inject constructor(
                         val overdue = allCharges.filter { it.isOverdue && !it.isPaid }
                         val unpaid = allCharges.filter { !it.isPaid && !it.isOverdue && it.finalCharge > 0 }
 
-                        // Only update charges, keep other data
+                        // Get current info to preserve other data
                         val currentInfo = _selectedDriver.value
                         _selectedDriver.value = DriverBillingInfo(
                             user = driver,
-                            invoices = currentInfo?.invoices ?: invoicesResult.getOrDefault(emptyList()),
+                            invoices = currentInfo?.invoices ?: emptyList(),
                             unpaidCharges = unpaid,
                             overdueCharges = overdue,
                             paidCharges = paid,
-                            paymentConfirmations = currentInfo?.paymentConfirmations ?: paymentConfirmationsResult.getOrDefault(emptyList()),
+                            paymentConfirmations = currentInfo?.paymentConfirmations ?: emptyList(),
                             tierUpgradeRecords = currentInfo?.tierUpgradeRecords ?: tierUpgradeRecordsResult.getOrDefault(emptyList())
                         )
                         
                         println("Driver billing updated - Paid: ${paid.size}, Unpaid: ${unpaid.size}, Overdue: ${overdue.size}")
                         _isLoading.value = false
+                    }
+                }
+                
+                // Start real-time observation of invoices
+                invoicesCollectionJob = viewModelScope.launch {
+                    billingRepository.observeDriverInvoices(driver.id).collect { invoices ->
+                        val currentInfo = _selectedDriver.value
+                        if (currentInfo != null) {
+                            _selectedDriver.value = currentInfo.copy(invoices = invoices)
+                            println("Invoices updated: ${invoices.size} invoices")
+                        }
+                    }
+                }
+                
+                // Refresh payment confirmations periodically (every 5 seconds)
+                paymentConfirmationsJob = viewModelScope.launch {
+                    while (true) {
+                        val confirmationsResult = billingRepository.getDriverPaymentConfirmations(driver.id)
+                        val confirmations = confirmationsResult.getOrDefault(emptyList())
+                        val currentInfo = _selectedDriver.value
+                        if (currentInfo != null && currentInfo.paymentConfirmations.size != confirmations.size) {
+                            _selectedDriver.value = currentInfo.copy(paymentConfirmations = confirmations)
+                            println("Payment confirmations updated: ${confirmations.size} confirmations")
+                        }
+                        kotlinx.coroutines.delay(5000) // Refresh every 5 seconds
                     }
                 }
             } catch (e: Exception) {
@@ -380,11 +407,15 @@ class AdminBillingViewModel @Inject constructor(
     }
 
     /**
-     * Clear selected driver
+     * Clear selected driver and cancel all observations
      */
     fun clearSelectedDriver() {
         chargesCollectionJob?.cancel()
+        invoicesCollectionJob?.cancel()
+        paymentConfirmationsJob?.cancel()
         chargesCollectionJob = null
+        invoicesCollectionJob = null
+        paymentConfirmationsJob = null
         _selectedDriver.value = null
     }
 

@@ -1,7 +1,14 @@
 package com.example.parktrack.data.model
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.PropertyName
 
+/**
+ * Invoice model for monthly billing
+ * 
+ * NOTE: Firestore requires @PropertyName annotations for boolean fields
+ * with "is" prefix to properly serialize/deserialize
+ */
 data class Invoice(
     val id: String = "",
     val driverId: String = "",
@@ -17,6 +24,7 @@ data class Invoice(
     val netAmount: Double = 0.0,
     val amountPaid: Double = 0.0,
     val balanceDue: Double = 0.0,
+    @get:PropertyName("isPaid")
     val isPaid: Boolean = false,
     val paymentStatus: String = "PENDING", // PENDING, PAID, OVERDUE
     val dueDate: Timestamp? = null,

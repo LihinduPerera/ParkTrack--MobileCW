@@ -1,12 +1,16 @@
 package com.example.parktrack.data.model
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.PropertyName
 import com.example.parktrack.billing.calculateParkingCharge
 import com.example.parktrack.billing.TierPricing
 
 /**
  * FIXED: ParkingCharge model with correct billing logic
  * Tracks payment status and unpaid records per driver
+ * 
+ * NOTE: Firestore requires @PropertyName annotations for boolean fields
+ * with "is" prefix to properly serialize/deserialize
  */
 data class ParkingCharge(
     val id: String = "",
@@ -28,13 +32,15 @@ data class ParkingCharge(
     val calculatedCharge: Double = 0.0,
     val discountApplied: Double = 0.0,
     val finalCharge: Double = 0.0,
-    // Payment tracking
+    // Payment tracking - using @PropertyName for Firestore compatibility
+    @get:PropertyName("isPaid")
     val isPaid: Boolean = false,
     val paymentMethod: String = "", // CASH, CARD, ONLINE
     val paymentDate: Timestamp? = null,
     val paymentConfirmedBy: String = "", // Admin who confirmed payment
     val paymentConfirmedByName: String = "",
-    // Unpaid tracking
+    // Unpaid tracking - using @PropertyName for Firestore compatibility
+    @get:PropertyName("isOverdue")
     val isOverdue: Boolean = false,
     val overdueDays: Int = 0,
     val overdueCharge: Double = 0.0,

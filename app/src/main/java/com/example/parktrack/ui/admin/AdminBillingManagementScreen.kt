@@ -64,21 +64,11 @@ fun AdminBillingManagementScreen(
         }
     }
 
-    // Refresh data when screen becomes visible
+    // Refresh data when screen becomes visible (with delay to allow Firestore propagation)
     androidx.compose.runtime.LaunchedEffect(Unit) {
         if (selectedDriver != null) {
-            kotlinx.coroutines.delay(500)
+            kotlinx.coroutines.delay(1000)
             viewModel.refreshDriverInfo()
-        }
-    }
-
-    // Auto-refresh data periodically while screen is visible
-    androidx.compose.runtime.LaunchedEffect(selectedDriver?.user?.id) {
-        selectedDriver?.user?.id?.let { driverId ->
-            while (true) {
-                kotlinx.coroutines.delay(3000) // Refresh every 3 seconds
-                viewModel.refreshDriverInfo()
-            }
         }
     }
 

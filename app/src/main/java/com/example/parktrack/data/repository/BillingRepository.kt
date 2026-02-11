@@ -21,6 +21,30 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * REQUIRED FIRESTORE INDEXES:
+ * 
+ * 1. parkingCharges collection:
+ *    - Composite Index: driverId (Ascending) + createdAt (Descending)
+ *    - Single Field Index: isPaid (Ascending)
+ *    - Single Field Index: driverId (Ascending)
+ *    
+ * 2. invoices collection:
+ *    - Composite Index: driverId (Ascending) + month (Descending)
+ *    - Single Field Index: driverId (Ascending)
+ *    
+ * 3. paymentConfirmations collection:
+ *    - Composite Index: driverId (Ascending) + createdAt (Descending)
+ *    - Single Field Index: driverId (Ascending)
+ *    
+ * To create these indexes:
+ * 1. Go to Firebase Console > Firestore Database > Indexes
+ * 2. Create the composite indexes listed above
+ * 3. Wait for the indexes to build (status: "Enabled")
+ * 
+ * OR run these commands using Firebase CLI:
+ * firebase firestore:indexes
+ */
 @Singleton
 class BillingRepository @Inject constructor(
     private val firestore: FirebaseFirestore
@@ -406,7 +430,8 @@ class BillingRepository @Inject constructor(
     private val tierUpgradeRecordsCollection = "tierUpgradeRecords"
 
     /**
-     * Confirm payment for an invoice (Admin only)
+     * FIXED: Confirm payment for an invoice (Admin only)
+     * Uses transaction to ensure atomic update and proper real-time notification
      */
     suspend fun confirmInvoicePayment(
         invoiceId: String,
@@ -416,48 +441,58 @@ class BillingRepository @Inject constructor(
         paymentMethod: String = "CASH",
         notes: String = ""
     ): Result<PaymentConfirmation> = runCatching {
-        // Get the invoice
-        val invoice = getInvoiceById(invoiceId).getOrThrow()
-            ?: throw Exception("Invoice not found")
+        // Use a transaction for atomic updates
+        val confirmation = firestore.runTransaction { transaction ->
+            // Get the invoice within the transaction
+            val invoiceRef = firestore.collection(invoicesCollection).document(invoiceId)
+            val invoiceDoc = transaction.get(invoiceRef)
+            val invoice = invoiceDoc.toObject(Invoice::class.java)
+                ?: throw Exception("Invoice not found")
 
-        // Create payment confirmation record
-        val confirmation = PaymentConfirmation(
-            id = UUID.randomUUID().toString(),
-            driverId = invoice.driverId,
-            invoiceId = invoiceId,
-            amount = amountPaid,
-            paymentMethod = paymentMethod,
-            paymentType = "PARKING_CHARGE",
-            confirmedByAdminId = adminId,
-            confirmedByAdminName = adminName,
-            notes = notes
-        )
+            // Create payment confirmation record
+            val confirmation = PaymentConfirmation(
+                id = UUID.randomUUID().toString(),
+                driverId = invoice.driverId,
+                invoiceId = invoiceId,
+                amount = amountPaid,
+                paymentMethod = paymentMethod,
+                paymentType = "PARKING_CHARGE",
+                confirmedByAdminId = adminId,
+                confirmedByAdminName = adminName,
+                confirmationDate = Timestamp.now(),
+                notes = notes,
+                createdAt = Timestamp.now()
+            )
 
-        // Save payment confirmation
-        firestore.collection(paymentConfirmationsCollection)
-            .document(confirmation.id)
-            .set(confirmation)
-            .await()
+            // Save payment confirmation
+            val confirmationRef = firestore.collection(paymentConfirmationsCollection)
+                .document(confirmation.id)
+            transaction.set(confirmationRef, confirmation)
 
-        // Update invoice payment status
-        val newBalance = invoice.netAmount - (invoice.amountPaid + amountPaid)
-        val isFullyPaid = newBalance <= 0
+            // Update invoice payment status within the same transaction
+            val newBalance = invoice.netAmount - (invoice.amountPaid + amountPaid)
+            val isFullyPaid = newBalance <= 0
 
-        firestore.collection(invoicesCollection).document(invoiceId).update(mapOf(
-            "amountPaid" to (invoice.amountPaid + amountPaid),
-            "balanceDue" to if (newBalance > 0) newBalance else 0.0,
-            "isPaid" to isFullyPaid,
-            "paymentStatus" to if (isFullyPaid) "PAID" else "PARTIAL",
-            "paidDate" to if (isFullyPaid) Timestamp.now() else null,
-            "updatedAt" to Timestamp.now()
-        )).await()
+            transaction.update(invoiceRef, mapOf(
+                "amountPaid" to (invoice.amountPaid + amountPaid),
+                "balanceDue" to if (newBalance > 0) newBalance else 0.0,
+                "isPaid" to isFullyPaid,
+                "paymentStatus" to if (isFullyPaid) "PAID" else "PARTIAL",
+                "paidDate" to if (isFullyPaid) Timestamp.now() else null,
+                "updatedAt" to Timestamp.now()
+            ))
+
+            confirmation
+        }.await()
+        
+        println("Invoice payment confirmed for $invoiceId: Rs. ${confirmation.amount} via $paymentMethod by $adminName")
 
         confirmation
     }
 
     /**
      * FIXED: Confirm payment for a specific charge with admin tracking
-     * Ensures charge is properly marked as paid and generates invoice
+     * Uses transaction to ensure atomic update and proper real-time notification
      */
     suspend fun confirmChargePayment(
         chargeId: String,
@@ -466,46 +501,60 @@ class BillingRepository @Inject constructor(
         paymentMethod: String = "CASH",
         notes: String = ""
     ): Result<PaymentConfirmation> = runCatching {
-        // Get the charge
-        val chargeDoc = firestore.collection(chargesCollection).document(chargeId).get().await()
-        val charge = chargeDoc.toObject(ParkingCharge::class.java)
-            ?: throw Exception("Charge not found")
+        // Use a transaction to ensure atomic updates
+        val confirmation = firestore.runTransaction { transaction ->
+            // Get the charge within the transaction
+            val chargeRef = firestore.collection(chargesCollection).document(chargeId)
+            val chargeDoc = transaction.get(chargeRef)
+            val charge = chargeDoc.toObject(ParkingCharge::class.java)
+                ?: throw Exception("Charge not found")
 
-        // Create payment confirmation record
-        val confirmation = PaymentConfirmation(
-            id = UUID.randomUUID().toString(),
-            driverId = charge.driverId,
-            chargeId = chargeId,
-            amount = charge.finalCharge,
-            paymentMethod = paymentMethod,
-            paymentType = "PARKING_CHARGE",
-            confirmedByAdminId = adminId,
-            confirmedByAdminName = adminName,
-            notes = notes
-        )
+            if (charge.isPaid) {
+                throw Exception("Charge is already marked as paid")
+            }
 
-        // Save payment confirmation first
-        firestore.collection(paymentConfirmationsCollection)
-            .document(confirmation.id)
-            .set(confirmation)
-            .await()
+            // Create payment confirmation record with all required fields
+            val confirmation = PaymentConfirmation(
+                id = UUID.randomUUID().toString(),
+                driverId = charge.driverId,
+                driverEmail = charge.driverEmail,
+                driverName = charge.driverName,
+                chargeId = chargeId,
+                amount = charge.finalCharge,
+                paymentMethod = paymentMethod,
+                paymentType = "PARKING_CHARGE",
+                confirmedByAdminId = adminId,
+                confirmedByAdminName = adminName,
+                confirmationDate = Timestamp.now(),
+                notes = notes,
+                createdAt = Timestamp.now()
+            )
 
-        // Update charge payment status - CRITICAL: This marks the charge as PAID
-        val paymentUpdates = mutableMapOf<String, Any>(
-            "isPaid" to true,
-            "paymentDate" to Timestamp.now(),
-            "paymentMethod" to paymentMethod,
-            "paymentConfirmedBy" to adminId,
-            "paymentConfirmedByName" to adminName,
-            "updatedAt" to Timestamp.now(),
-            "isOverdue" to false,
-            "overdueDays" to 0,
-            "overdueCharge" to 0.0
-        )
+            // Save payment confirmation
+            val confirmationRef = firestore.collection(paymentConfirmationsCollection)
+                .document(confirmation.id)
+            transaction.set(confirmationRef, confirmation)
+
+            // Update charge payment status within the same transaction
+            val paymentUpdates = mapOf(
+                "isPaid" to true,
+                "paymentDate" to Timestamp.now(),
+                "paymentMethod" to paymentMethod,
+                "paymentConfirmedBy" to adminId,
+                "paymentConfirmedByName" to adminName,
+                "updatedAt" to Timestamp.now(),
+                "isOverdue" to false,
+                "overdueDays" to 0,
+                "overdueCharge" to 0.0
+            )
+            
+            transaction.update(chargeRef, paymentUpdates)
+            
+            confirmation
+        }.await()
         
-        firestore.collection(chargesCollection).document(chargeId).update(paymentUpdates).await()
-        
-        println("Payment confirmed for charge $chargeId: Rs. ${charge.finalCharge} via $paymentMethod by $adminName")
+        println("Payment confirmed for charge $chargeId: Rs. ${confirmation.amount} via $paymentMethod by $adminName")
+        println("Transaction completed - charge should now show as PAID in real-time listeners")
 
         confirmation
     }
@@ -643,24 +692,61 @@ class BillingRepository @Inject constructor(
     }
     
     /**
-     * Observe all charges for a driver in real-time
+     * FIXED: Observe all charges for a driver in real-time with fallback
+     * Uses a simple query first, then sorts in memory to avoid index issues
      */
     fun observeDriverCharges(driverId: String): kotlinx.coroutines.flow.Flow<List<ParkingCharge>> {
         return callbackFlow {
-            val listener = firestore.collection(chargesCollection)
+            // Try the ordered query first (requires composite index)
+            val orderedListener = firestore.collection(chargesCollection)
                 .whereEqualTo("driverId", driverId)
                 .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
                 .addSnapshotListener { snapshot, error ->
                     if (error != null) {
-                        close(error)
+                        // Log the error and fallback to simple query
+                        println("Firestore index error in observeDriverCharges: ${error.message}")
+                        println("Please create the composite index for: driverId + createdAt in parkingCharges collection")
+                        
+                        // Fallback: Use simple query without ordering
+                        setupSimpleQueryListener(driverId, this)
                         return@addSnapshotListener
                     }
                     
                     val charges = snapshot?.toObjects(ParkingCharge::class.java) ?: emptyList()
-                    trySend(charges)
+                    println("Real-time update received: ${charges.size} charges for driver $driverId")
+                    println("Paid: ${charges.count { it.isPaid }}, Unpaid: ${charges.count { !it.isPaid && it.finalCharge > 0 }}")
+                    trySend(charges).isSuccess
                 }
             
-            awaitClose { listener.remove() }
+            awaitClose { orderedListener.remove() }
+        }
+    }
+    
+    /**
+     * Fallback listener that uses simple query without ordering
+     */
+    private fun setupSimpleQueryListener(
+        driverId: String,
+        scope: kotlinx.coroutines.channels.ProducerScope<List<ParkingCharge>>
+    ) {
+        val simpleListener = firestore.collection(chargesCollection)
+            .whereEqualTo("driverId", driverId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    println("Error in fallback query: ${error.message}")
+                    return@addSnapshotListener
+                }
+                
+                val charges = snapshot?.toObjects(ParkingCharge::class.java)
+                    ?.sortedByDescending { it.createdAt.toDate().time } 
+                    ?: emptyList()
+                
+                println("Real-time update (fallback): ${charges.size} charges for driver $driverId")
+                scope.trySend(charges).isSuccess
+            }
+        
+        scope.invokeOnClose {
+            simpleListener.remove()
         }
     }
 

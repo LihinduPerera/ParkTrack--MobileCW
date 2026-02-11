@@ -46,6 +46,10 @@ class BillingViewModel @Inject constructor(
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+    
+    // Job references for cleanup
+    private var chargesJob: kotlinx.coroutines.Job? = null
+    private var invoicesJob: kotlinx.coroutines.Job? = null
 
     fun loadDriverInvoices(driverId: String) {
         viewModelScope.launch {
@@ -159,11 +163,14 @@ class BillingViewModel @Inject constructor(
     }
     
     /**
-     * FIXED: Observe all charges for a driver in real-time
+     * FIXED: Observe all charges for a driver in real-time with proper job management
      * Properly categorizes charges and detects overdue status
      */
     fun observeAllCharges(driverId: String) {
-        viewModelScope.launch {
+        // Cancel existing job if any
+        chargesJob?.cancel()
+        
+        chargesJob = viewModelScope.launch {
             try {
                 billingRepository.observeDriverCharges(driverId).collectLatest { charges ->
                     // Check for overdue charges
@@ -184,13 +191,41 @@ class BillingViewModel @Inject constructor(
                     _paidCharges.value = charges.filter { it.isPaid }
                     _unpaidCharges.value = charges.filter { !it.isPaid && !it.isOverdue && it.finalCharge > 0 }
                     _overdueCharges.value = charges.filter { it.isOverdue && !it.isPaid }
+                    _charges.value = charges // Keep track of all charges
                     
-                    println("Billing data updated - Paid: ${_paidCharges.value.size}, Unpaid: ${_unpaidCharges.value.size}, Overdue: ${_overdueCharges.value.size}")
+                    println("BillingViewModel: Data updated - Total: ${charges.size}, Paid: ${_paidCharges.value.size}, Unpaid: ${_unpaidCharges.value.size}, Overdue: ${_overdueCharges.value.size}")
                 }
             } catch (e: Exception) {
                 _errorMessage.value = e.message ?: "Failed to observe charges"
+                println("Error observing charges: ${e.message}")
             }
         }
+    }
+    
+    /**
+     * FIXED: Observe driver invoices in real-time
+     */
+    fun observeDriverInvoicesRealtime(driverId: String) {
+        // Cancel existing job if any
+        invoicesJob?.cancel()
+        
+        invoicesJob = viewModelScope.launch {
+            try {
+                billingRepository.observeDriverInvoices(driverId).collectLatest { invoices ->
+                    _invoices.value = invoices
+                    println("BillingViewModel: Invoices updated - ${invoices.size} invoices")
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Failed to observe invoices"
+                println("Error observing invoices: ${e.message}")
+            }
+        }
+    }
+    
+    override fun onCleared() {
+        super.onCleared()
+        chargesJob?.cancel()
+        invoicesJob?.cancel()
     }
 
     fun loadOverdueInvoices(driverId: String) {

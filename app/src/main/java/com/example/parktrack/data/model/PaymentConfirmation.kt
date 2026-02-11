@@ -1,6 +1,7 @@
 package com.example.parktrack.data.model
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.PropertyName
 
 /**
  * Represents a payment confirmation made by an admin.
@@ -26,6 +27,9 @@ data class PaymentConfirmation(
 /**
  * Represents a tier upgrade request/record.
  * Tracks when a driver upgrades their subscription tier.
+ * 
+ * NOTE: Firestore requires @PropertyName annotations for boolean fields
+ * with "is" prefix to properly serialize/deserialize
  */
 data class TierUpgradeRecord(
     val id: String = "",
@@ -35,6 +39,7 @@ data class TierUpgradeRecord(
     val fromTier: String = "NORMAL",
     val toTier: String = "",
     val upgradeFee: Double = 0.0,
+    @get:PropertyName("isPaid")
     val isPaid: Boolean = false,
     val paymentConfirmationId: String = "",
     val processedByAdminId: String = "",

@@ -51,10 +51,10 @@ fun BillingScreen(
     LaunchedEffect(userId) {
         if (userId.isNotEmpty()) {
             viewModel.refreshAllPaymentStatuses(userId)
-            viewModel.loadDriverInvoices(userId)
+            viewModel.observeAllCharges(userId) // Real-time observation of charges
+            viewModel.observeDriverInvoicesRealtime(userId) // Real-time observation of invoices
             viewModel.loadCurrentMonthInvoice(userId)
             viewModel.loadOverdueInvoices(userId)
-            viewModel.observeAllCharges(userId) // Add real-time observation
             userTierViewModel.loadCurrentUser()
         }
     }
